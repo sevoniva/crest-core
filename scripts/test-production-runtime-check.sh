@@ -98,7 +98,7 @@ function deployment(name) {
       progressDeadlineSeconds: 600,
       strategy: {
         type: "RollingUpdate",
-        rollingUpdate: isFrontend ? { maxSurge: 1, maxUnavailable: 0 } : { maxSurge: 0, maxUnavailable: 1 },
+        rollingUpdate: { maxSurge: 0, maxUnavailable: 1 },
       },
       selector: { matchLabels: { "app.kubernetes.io/name": name, "app.kubernetes.io/component": item.component } },
       template: {

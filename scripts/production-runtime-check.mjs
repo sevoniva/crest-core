@@ -220,7 +220,7 @@ function requireEnvFrom(containerSpec, type, name, owner) {
   assert(ref[type]?.optional !== true, `${owner} must require ${name}`);
 }
 
-function checkDeploymentRollout(deployment, name, strategyType, expectedRollingUpdate = { maxSurge: 1, maxUnavailable: 0 }) {
+function checkDeploymentRollout(deployment, name, strategyType, expectedRollingUpdate = { maxSurge: 0, maxUnavailable: 1 }) {
   assert(deployment.spec?.revisionHistoryLimit === 3, `${name} must keep revisionHistoryLimit=3`);
   assert(deployment.spec?.progressDeadlineSeconds === 600, `${name} must set progressDeadlineSeconds=600`);
   assert(deployment.spec?.strategy?.type === strategyType, `${name} must use ${strategyType} rollout strategy`);
@@ -297,7 +297,7 @@ function checkFrontendProbes(containerSpec, name) {
 }
 
 function checkDeployment(name, component, role, minReplicas, requireFsGroup, strategyType = "RollingUpdate",
-                         expectedRollingUpdate = { maxSurge: 1, maxUnavailable: 0 }) {
+                         expectedRollingUpdate = { maxSurge: 0, maxUnavailable: 1 }) {
   info(`checking rollout ${name}`);
   kubectl(["rollout", "status", `deployment/${name}`, `--timeout=${timeout}`], { quiet: true });
 

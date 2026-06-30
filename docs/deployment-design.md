@@ -223,7 +223,7 @@ bash scripts/enterprise-readiness-check.sh
 
 | 组件 | 策略 |
 | --- | --- |
-| frontend | 2 副本，`maxSurge=1`、`maxUnavailable=0`，Ingress 流量进入 Service |
+| frontend | 2 副本，`maxSurge=0`、`maxUnavailable=1`，Ingress 流量进入 Service |
 | backend | 2 副本，`CREST_RUNTIME_ROLE=all`，`maxSurge=0`、`maxUnavailable=1`，readiness 同时覆盖应用、数据库和 Redis |
 | async worker | 由 backend Pod 内部承载，Redis Streams consumer group 协调 |
 | scheduler | 由 backend Pod 内部承载，Quartz JDBC Cluster 防重复触发 |
@@ -231,7 +231,7 @@ bash scripts/enterprise-readiness-check.sh
 | PDB | 防止自愿驱逐导致全部副本不可用 |
 | topology spread | 多节点集群中优先分散副本 |
 
-后端 Deployment 使用 `maxSurge=0`、`maxUnavailable=1`。发布过程中最多保持 2 个后端 Pod，不会临时增加到 3 个；代价是滚动发布期间可用后端 Pod 可能短暂降到 1 个。Kubernetes Deployment 无法同时满足“不临时增加到 3 个 Pod”和“发布期间始终 2 个后端 Pod 可用”。生产上线前必须证明单后端 Pod 能承载发布窗口内的基础流量，并把低峰发布、快速回滚和容量证据纳入审批。
+两个业务 Deployment 都使用 `maxSurge=0`、`maxUnavailable=1`。发布过程中每个 Deployment 最多保持 2 个 Pod，不会临时增加到 3 个；代价是滚动发布期间对应工作负载的可用 Pod 可能短暂降到 1 个。Kubernetes Deployment 无法同时满足“不临时增加到 3 个 Pod”和“发布期间始终 2 个 Pod 可用”。生产上线前必须证明单 Pod 能承载发布窗口内的基础流量，并把低峰发布、快速回滚和容量证据纳入审批。
 
 滚动发布前必须确认：
 

@@ -179,7 +179,7 @@ sequenceDiagram
 | 前端 Pod 故障 | `crest` 2 副本，Ingress 与 Service 负载均衡 |
 | 异步任务 Pod 故障 | Redis Streams consumer group 重新分配任务 |
 | 调度 Pod 故障 | Quartz JDBC Cluster check-in 和 misfire 处理 |
-| 滚动发布中断 | 前端使用 `maxSurge=1`、`maxUnavailable=0`；后端为避免临时出现第 3 个 Pod，使用 `maxSurge=0`、`maxUnavailable=1`，发布窗口内需由单后端 Pod 承载基础流量 |
+| 滚动发布中断 | 前端和后端都使用 `maxSurge=0`、`maxUnavailable=1`，避免临时出现第 3 个 Pod；发布窗口内需由单 Pod 承载基础流量 |
 | 单节点调度集中 | topology spread constraints 分散副本 |
 | 文件不一致 | 使用 RWX PVC 共享 `/opt/crest/data` |
 

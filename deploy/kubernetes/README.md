@@ -27,7 +27,7 @@ Ingress + TLS
 
 发布与安全基线：
 
-- frontend 使用 `RollingUpdate` 且 `maxUnavailable=0`；后端使用 `maxSurge=0`、`maxUnavailable=1`，发布过程中不临时扩到第 3 个后端 Pod。该策略要求单后端 Pod 能承载发布窗口内的基础流量。
+- frontend 和后端都使用 `RollingUpdate`，并统一设置 `maxSurge=0`、`maxUnavailable=1`。发布过程中单个 Deployment 不会临时扩到第 3 个 Pod；该策略要求单 Pod 能承载发布窗口内的基础流量。
 - Quartz 调度、Redis Streams 消费和 API 都在 `crest-service` 后端 Pod 内运行，通过 Quartz JDBC Cluster、Redis 锁和数据库状态抢占控制重复执行风险。
 - 所有 Pod 使用非 root 用户 `10001`、禁用 ServiceAccount token 自动挂载、丢弃 Linux capabilities、禁止提权、启用 `seccompProfile: RuntimeDefault`，并将容器根文件系统设为只读。
 - 后端仅将 `/opt/crest/data` 挂到 RWX PVC；日志、缓存和 `/tmp` 使用带 `sizeLimit` 的 `emptyDir`，避免应用写入镜像层或打满节点磁盘。
