@@ -223,7 +223,7 @@ kubectl create --dry-run=client -f deploy/kubernetes -o name
 - 前端和后端 Service 保持 `ClusterIP`，生产入口通过 Ingress TLS 暴露
 - Pod 使用非 root 用户、`seccompProfile=RuntimeDefault`、禁用 ServiceAccount token 自动挂载、禁止提权并丢弃 capabilities
 - NetworkPolicy 限制入站访问：外部只进前端，后端只接受前端和监控抓取
-- 前端和组合后端使用零不可用滚动发布；scheduler 依赖 Quartz JDBC Cluster、Redis 锁和数据库状态防重，worker 依赖 Redis Streams consumer group 和数据库状态防重
+- 前端使用零不可用滚动发布；组合后端为避免临时出现第 3 个 Pod，使用 `maxSurge=0`、`maxUnavailable=1`，发布窗口内可能短暂只剩 1 个可用后端。scheduler 依赖 Quartz JDBC Cluster、Redis 锁和数据库状态防重，worker 依赖 Redis Streams consumer group 和数据库状态防重
 
 如本地可启动 kind，可进一步跑 API Server 级校验：
 
