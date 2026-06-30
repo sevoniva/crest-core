@@ -52,10 +52,11 @@
 发布交付物：
 
 ```text
-ghcr.io/sevoniva/crest-service:vX.Y.Z
-ghcr.io/sevoniva/crest-web:vX.Y.Z
+ghcr.io/sevoniva/crest-core-service:vX.Y.Z
+ghcr.io/sevoniva/crest-core-web:vX.Y.Z
 installer/init-sql/ob-oracle/crest-core-schema.sql
 deploy/kubernetes/
+deploy/docker/
 ```
 
 ## 数据库变更

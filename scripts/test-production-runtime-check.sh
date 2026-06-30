@@ -50,7 +50,7 @@ function container(name, role) {
   ];
   return {
     name,
-    image: isFrontend ? "ghcr.io/sevoniva/crest-web:v1.0.0" : "ghcr.io/sevoniva/crest-service:v1.0.0",
+    image: isFrontend ? "ghcr.io/sevoniva/crest-core-web:v1.0.0" : "ghcr.io/sevoniva/crest-core-service:v1.0.0",
     imagePullPolicy: "IfNotPresent",
     env: isFrontend ? [] : [
       { name: "CREST_RUNTIME_ROLE", value: role },

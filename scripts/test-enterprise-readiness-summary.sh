@@ -722,8 +722,8 @@ env \
   CREST_REDIS_USERNAME="ops01-prod-crest-core-acl" \
   CREST_REDIS_PASSWORD="redis-secret-value-123" \
   CREST_REDIS_KEY_PREFIX="{ops01-prod-crest-core}:prod" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_DATA_STORAGE_CLASS="rwx-storage" \
   bash scripts/enterprise-readiness-check.sh >"${test_root}/overlay-readiness.log" 2>&1
 

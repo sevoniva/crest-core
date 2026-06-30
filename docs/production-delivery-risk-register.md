@@ -10,6 +10,7 @@
 | SAST/SCA | 已通过，当前树 0 finding / 0 vulnerability / 0 license violation |
 | Docker 构建 | 已通过 |
 | 容器镜像扫描 | 已通过，前后端镜像 HIGH/CRITICAL 为 0 |
+| Docker Compose 生产交付 | 已补充静态与严格配置门禁 |
 | Kubernetes API dry-run | 已通过 |
 | 生产候选状态 | 已达到 |
 | 生产交付状态 | 未完成，需要真实环境证据和外部审批材料 |
@@ -40,6 +41,7 @@
 | R-10 | P1 | 故障演练未完成 | 文档已有演练步骤 | 滚动重启、Pod 删除、worker 恢复未验证 | 在预发执行 rollout restart、Pod delete、Redis/OB 侧演练 | 演练记录和业务冒烟记录 |
 | R-11 | P2 | 进一步物理瘦身未完成 | 当前通过配置和校验收窄生产面 | 仓库仍包含部分未默认启用代码，维护面偏大 | 后续按独立 PR 删除旧交付脚本、未开放 provider、外围页面 | 每个删除 PR 的测试、SAST/SCA 和回归报告 |
 | R-12 | P2 | 文档与运行参数后续漂移 | 已补齐架构和部署设计 | 运行参数变化后文档可能滞后 | 将文档更新纳入发布检查 | PR checklist、release guard 和 docs review |
+| R-13 | P1 | Docker Compose 单主机生产高可用能力有限 | 已补交付包和门禁，但不等价于 K8s HA | 主机故障、网络隔离和滚动发布能力弱于 Kubernetes | 仅用于单主机生产或预发；外层补齐 TLS、主机监控、备份、反向代理和故障演练；多节点 HA 使用 Kubernetes | `test-docker-production-check.sh`、业务冒烟、主机备份和故障演练记录 |
 
 ## 4. 当前可放行范围
 
@@ -47,6 +49,7 @@
 
 - 当前工作树的代码规范、SAST/SCA、license、SBOM、当前树 secret scan 通过。
 - Kubernetes 生产模板具备多副本、PDB、NetworkPolicy、SecurityContext、探针和 RWX PVC 设计。
+- Docker Compose 生产包只启动 `crest-core-web` 和 `crest-core-service`，并强制外部 OB Oracle 与 Redis Cluster。
 - Redis Cluster 共享场景已有前缀、hash tag、ACL 和 namespace check 方案。
 - OpenJDK 17、OB Oracle、Kubernetes 多副本、生产功能瘦身已作为默认设计固化。
 - 本地报告目录已保留 SAST/SCA、容器扫描、readiness、kind dry-run 和生产 overlay 证据摘要。
@@ -59,6 +62,7 @@
 - 不能宣称历史凭据风险已经处置。
 - 不能宣称 clean source 或 fresh repository 交付已经完成。
 - 不能宣称业务方 Go/No-Go 已审批。
+- 不能宣称 Docker Compose 单主机交付具备 Kubernetes 等价的多节点 HA 能力。
 
 ## 5. 推荐收口顺序
 

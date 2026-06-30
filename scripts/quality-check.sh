@@ -38,6 +38,7 @@ bash scripts/test-docker-environment-check.sh
 bash scripts/test-docker-cleanup-plan.sh
 bash scripts/test-docker-build-check.sh
 bash scripts/test-docker-context-policy-check.sh
+bash scripts/test-docker-production-check.sh
 bash scripts/test-kind-smoke-test.sh
 bash scripts/test-production-evidence-bundle.sh
 bash scripts/test-production-external-evidence-check.sh

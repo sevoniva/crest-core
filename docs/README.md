@@ -7,11 +7,12 @@
 | 文档 | 内容 |
 | --- | --- |
 | [架构设计](./architecture-design.md) | 系统上下文、运行拓扑、模块边界、数据流、Redis 隔离、高可用和安全设计 |
-| [部署设计](./deployment-design.md) | 生产 overlay、OB Oracle、Redis Cluster、多副本、上线顺序和验收清单 |
-| [Crest Core 生产范围](./crest-core-scope.md) | OpenJDK 17、OB Oracle、Kubernetes 多副本和默认瘦身边界 |
+| [部署设计](./deployment-design.md) | Kubernetes 与 Docker Compose 生产交付、OB Oracle、Redis Cluster、多副本、上线顺序和验收清单 |
+| [Crest Core 生产范围](./crest-core-scope.md) | OpenJDK 17、OB Oracle、Kubernetes/Docker Compose 交付和默认瘦身边界 |
 | [生产准入](./production-readiness.md) | 企业级上线门禁、真实环境验收、备份恢复和 Go/No-Go |
 | [生产交付风险登记册](./production-delivery-risk-register.md) | 当前生产候选状态、剩余交付风险、责任分工和收口顺序 |
 | [Kubernetes 部署](../deploy/kubernetes/README.md) | OceanBase Oracle、Redis、Secret、多副本和探针 |
+| [Docker Compose 生产交付](../deploy/docker/README.md) | 本地 Docker 两服务交付、外部 OB/Redis、严格 env 和安全基线 |
 | [OceanBase Oracle 初始化](../installer/README.md) | 首版 OB Oracle 空库初始化 SQL |
 | [OceanBase 支持](./oceanbase-support.md) | 系统库和业务数据源接入 OceanBase Oracle 的配置与验收 |
 | [可观测性](./observability.md) | Prometheus、指标、告警和排障 |

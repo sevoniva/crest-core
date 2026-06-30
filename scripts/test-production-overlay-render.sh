@@ -92,8 +92,8 @@ if env -i \
   CREST_REDIS_CLUSTER_NODES="redis-a.example.internal:6379,redis-b.example.internal:6379,redis-c.example.internal:6379" \
   CREST_REDIS_USERNAME="ops01-prod-crest-core-acl" \
   CREST_REDIS_PASSWORD="${redis_password}" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_DATA_STORAGE_CLASS="rwx-storage" \
   CREST_PRODUCTION_OVERLAY_DIR="${overlay_dir}-missing-prefix" \
   bash scripts/render-production-overlay.sh >"${missing_prefix_log}" 2>&1; then
@@ -121,8 +121,8 @@ if env -i \
   CREST_REDIS_USERNAME="ops01-prod-crest-core-acl" \
   CREST_REDIS_PASSWORD="${redis_password}" \
   CREST_REDIS_KEY_PREFIX="{acme-crest-core-prod}:prod" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_DATA_STORAGE_CLASS="rwx-storage" \
   CREST_PRODUCTION_OVERLAY_DIR="${overlay_dir}-example-prefix" \
   bash scripts/render-production-overlay.sh >"${example_prefix_log}" 2>&1; then
@@ -150,8 +150,8 @@ if env -i \
   CREST_REDIS_USERNAME="production" \
   CREST_REDIS_PASSWORD="${redis_password}" \
   CREST_REDIS_KEY_PREFIX="{ops01-prod-crest-core}:prod" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_DATA_STORAGE_CLASS="rwx-storage" \
   CREST_PRODUCTION_OVERLAY_DIR="${overlay_dir}-generic-redis-user" \
   bash scripts/render-production-overlay.sh >"${generic_redis_user_log}" 2>&1; then
@@ -180,8 +180,8 @@ if env -i \
   CREST_REDIS_PASSWORD="${redis_password}" \
   CREST_REDIS_KEY_PREFIX="{ops01-prod-crest-core}:prod" \
   CREST_PROMETHEUS_ENABLED="true" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_DATA_STORAGE_CLASS="rwx-storage" \
   CREST_PRODUCTION_OVERLAY_DIR="${overlay_dir}-missing-prometheus-token" \
   bash scripts/render-production-overlay.sh >"${missing_prometheus_token_log}" 2>&1; then
@@ -209,8 +209,8 @@ if env -i \
   CREST_REDIS_USERNAME="ops01-prod-crest-core-acl" \
   CREST_REDIS_PASSWORD="${redis_password}" \
   CREST_REDIS_KEY_PREFIX="{ops01-prod-crest-core}:prod" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_PRODUCTION_OVERLAY_DIR="${overlay_dir}-missing-storage-class" \
   bash scripts/render-production-overlay.sh >"${missing_storage_class_log}" 2>&1; then
   fail "render-production-overlay should require CREST_DATA_STORAGE_CLASS for production RWX storage"
@@ -237,8 +237,8 @@ env -i \
   CREST_REDIS_USERNAME="ops01-prod-crest-core-acl" \
   CREST_REDIS_PASSWORD="${redis_password}" \
   CREST_REDIS_KEY_PREFIX="{ops01-prod-crest-core}:prod" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_DATA_STORAGE_CLASS="rwx-storage" \
   CREST_PRODUCTION_OVERLAY_DIR="${overlay_dir}" \
   bash scripts/render-production-overlay.sh
@@ -269,8 +269,8 @@ env -i \
   CREST_REDIS_KEY_PREFIX="{ops01-prod-crest-core}:prod" \
   CREST_PROMETHEUS_ENABLED="true" \
   CREST_PROMETHEUS_TOKEN="${prometheus_token}" \
-  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-service:v1.0.0" \
-  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-web:v1.0.0" \
+  CREST_BACKEND_IMAGE="ghcr.io/sevoniva/crest-core-service:v1.0.0" \
+  CREST_FRONTEND_IMAGE="ghcr.io/sevoniva/crest-core-web:v1.0.0" \
   CREST_DATA_STORAGE_CLASS="rwx-storage" \
   CREST_PRODUCTION_OVERLAY_DIR="${overlay_dir}-prometheus" \
   bash scripts/render-production-overlay.sh

@@ -97,9 +97,9 @@ jdk_image="${CREST_DOCKER_JDK_IMAGE:-eclipse-temurin:17-jdk-jammy@sha256:beabb75
 runtime_image="${CREST_DOCKER_RUNTIME_IMAGE:-ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54}"
 nginx_image="${CREST_DOCKER_NGINX_IMAGE:-${default_nginx_image}}"
 
-backend_image="${CREST_DOCKER_BACKEND_TAG:-crest-service:local-check}"
-frontend_image="${CREST_DOCKER_FRONTEND_TAG:-crest-web:local-check}"
-jre_check_image="${CREST_DOCKER_JRE_CHECK_TAG:-crest-service-jre-build:local-check}"
+backend_image="${CREST_DOCKER_BACKEND_TAG:-crest-core-service:local-check}"
+frontend_image="${CREST_DOCKER_FRONTEND_TAG:-crest-core-web:local-check}"
+jre_check_image="${CREST_DOCKER_JRE_CHECK_TAG:-crest-core-service-jre-build:local-check}"
 commit_id="${CREST_DOCKER_COMMIT_ID:-local}"
 frontend_buildkit="${CREST_DOCKER_FRONTEND_BUILDKIT:-false}"
 backend_buildkit="${CREST_DOCKER_BACKEND_BUILDKIT:-false}"

@@ -1435,11 +1435,9 @@ INSERT INTO core_system_setting (id, pkey, pval, type, sort) VALUES (10014000000
 INSERT INTO core_system_setting (id, pkey, pval, type, sort) VALUES (100140000000000018,'sso.logoutRedirectUrl','','text',18);
 
 UPDATE core_iam_user
-SET name = UNISTR('\7BA1\7406\5458')
+SET name = '管理员'
 WHERE id = 1
-  AND account = 'admin'
-  AND (name LIKE '%<%' OR name LIKE '%>%'
-    OR name = UNISTR('\00E7\00AE\00A1\00E7\0090\2020\00E5\2018\02DC'));
+  AND (name LIKE '%<%' OR name LIKE '%>%');
 
 UPDATE core_iam_user
 SET name = account

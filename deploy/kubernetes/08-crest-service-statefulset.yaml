@@ -42,7 +42,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: crest-service
-          image: ghcr.io/sevoniva/crest-service:v1.0.0
+          image: ghcr.io/sevoniva/crest-core-service:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

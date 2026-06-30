@@ -192,7 +192,7 @@ run_check() {
     || fail "${name} should validate the effective Nginx image"
   grep -q '^require_base_image_digests=true$' "${policy_report}" \
     || fail "${name} should require digest-pinned base images by default"
-  grep -q 'crest-web:local-check' "${run_log}" \
+  grep -q 'crest-core-web:local-check' "${run_log}" \
     || fail "${name} should still run frontend nginx syntax check"
 }
 

@@ -196,8 +196,8 @@ if [[ -n "${CREST_CONTAINER_SCAN_IMAGES:-}" ]]; then
   IFS=',' read -r -a image_refs <<< "${CREST_CONTAINER_SCAN_IMAGES}"
 else
   image_refs=(
-    "frontend=${CREST_DOCKER_FRONTEND_TAG:-crest-web:local-check}"
-    "backend=${CREST_DOCKER_BACKEND_TAG:-crest-service:local-check}"
+    "frontend=${CREST_DOCKER_FRONTEND_TAG:-crest-core-web:local-check}"
+    "backend=${CREST_DOCKER_BACKEND_TAG:-crest-core-service:local-check}"
   )
 fi
 

@@ -1,0 +1,152 @@
+name: ${CREST_COMPOSE_PROJECT_NAME:-crest-core}
+
+services:
+  crest-core-service:
+    image: ${CREST_BACKEND_IMAGE:?set CREST_BACKEND_IMAGE}
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 60s
+    cpus: "${CREST_BACKEND_CPUS:-2.0}"
+    mem_limit: ${CREST_BACKEND_MEMORY_LIMIT:-2g}
+    pids_limit: 512
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        export CREST_WORKER_ID="$${CREST_WORKER_ID:-$$(hostname)}"
+        exec java $$JAVA_OPTS -jar /opt/apps/app.jar
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SPRING_PROFILES_ACTIVE: standalone
+      CREST_RUNTIME_ROLE: all
+      CREST_PRODUCTION_MODE: "true"
+      CREST_LOAD_DEMO: "false"
+      CREST_FLYWAY_ENABLED: "false"
+      SPRING_QUARTZ_JDBC_INITIALIZE_SCHEMA: never
+      CREST_INTERNAL_LITE_ENABLED: "true"
+      CREST_API_DOCS_ENABLED: "false"
+      CREST_KNIFE4J_ENABLED: "false"
+      CREST_FEATURE_AI_ENABLED: "false"
+      CREST_FEATURE_SQLBOT_ENABLED: "false"
+      CREST_FEATURE_TEMPLATE_MARKET_ENABLED: "false"
+      CREST_FEATURE_FONT_MANAGEMENT_ENABLED: "false"
+      CREST_FEATURE_VISUALIZATION_BACKGROUND_ENABLED: "false"
+      CREST_ALLOWED_DATASOURCE_TYPES: obOracle,Excel,ExcelRemote,API
+      CREST_ORIGIN_LIST: ${CREST_ORIGIN_LIST:?set CREST_ORIGIN_LIST}
+      CREST_DB_TYPE: ob-oracle
+      CREST_DB_DRIVER_CLASS_NAME: com.oceanbase.jdbc.Driver
+      CREST_DB_HOST: ${CREST_DB_HOST:?set CREST_DB_HOST}
+      CREST_DB_PORT: "${CREST_DB_PORT:-2883}"
+      CREST_DB_URL: ${CREST_DB_URL:?set CREST_DB_URL}
+      CREST_DB_USERNAME: ${CREST_DB_USERNAME:?set CREST_DB_USERNAME}
+      CREST_DB_PASSWORD: ${CREST_DB_PASSWORD:?set CREST_DB_PASSWORD}
+      CREST_AES_KEY: ${CREST_AES_KEY:?set CREST_AES_KEY}
+      CREST_AES_IV: ${CREST_AES_IV:?set CREST_AES_IV}
+      CREST_INITIAL_PASSWORD: ${CREST_INITIAL_PASSWORD:?set CREST_INITIAL_PASSWORD}
+      CREST_TOKEN_SECRET: ${CREST_TOKEN_SECRET:?set CREST_TOKEN_SECRET}
+      CREST_REDIS_CLUSTER_NODES: ${CREST_REDIS_CLUSTER_NODES:?set CREST_REDIS_CLUSTER_NODES}
+      CREST_REDIS_USERNAME: ${CREST_REDIS_USERNAME:?set CREST_REDIS_USERNAME}
+      CREST_REDIS_PASSWORD: ${CREST_REDIS_PASSWORD:?set CREST_REDIS_PASSWORD}
+      CREST_REDIS_DATABASE: "0"
+      CREST_REDIS_SSL_ENABLED: "${CREST_REDIS_SSL_ENABLED:-false}"
+      CREST_REDIS_CLUSTER_MAX_REDIRECTS: "${CREST_REDIS_CLUSTER_MAX_REDIRECTS:-5}"
+      CREST_REDIS_CLUSTER_REFRESH_ADAPTIVE: "${CREST_REDIS_CLUSTER_REFRESH_ADAPTIVE:-true}"
+      CREST_REDIS_CLUSTER_REFRESH_PERIOD: "${CREST_REDIS_CLUSTER_REFRESH_PERIOD:-30s}"
+      CREST_REDIS_CLUSTER_DYNAMIC_REFRESH_SOURCES: "${CREST_REDIS_CLUSTER_DYNAMIC_REFRESH_SOURCES:-true}"
+      CREST_REDIS_CONNECT_TIMEOUT: "${CREST_REDIS_CONNECT_TIMEOUT:-2s}"
+      CREST_REDIS_TIMEOUT: "${CREST_REDIS_TIMEOUT:-5s}"
+      CREST_REDIS_KEY_PREFIX: ${CREST_REDIS_KEY_PREFIX:?set CREST_REDIS_KEY_PREFIX}
+      CREST_REDIS_CACHE_KEY_PREFIX: ${CREST_REDIS_CACHE_KEY_PREFIX:?set CREST_REDIS_CACHE_KEY_PREFIX}
+      CREST_LOCK_KEY_PREFIX: ${CREST_LOCK_KEY_PREFIX:?set CREST_LOCK_KEY_PREFIX}
+      CREST_WEBSOCKET_BROADCAST_CHANNEL: ${CREST_WEBSOCKET_BROADCAST_CHANNEL:?set CREST_WEBSOCKET_BROADCAST_CHANNEL}
+      CREST_TASK_QUEUE_ENABLED: "true"
+      CREST_EXPORT_TASK_STREAM: ${CREST_EXPORT_TASK_STREAM:?set CREST_EXPORT_TASK_STREAM}
+      CREST_EXPORT_TASK_CONSUMER_GROUP: ${CREST_EXPORT_TASK_CONSUMER_GROUP:?set CREST_EXPORT_TASK_CONSUMER_GROUP}
+      CREST_SYNC_TASK_STREAM: ${CREST_SYNC_TASK_STREAM:?set CREST_SYNC_TASK_STREAM}
+      CREST_SYNC_TASK_CONSUMER_GROUP: ${CREST_SYNC_TASK_CONSUMER_GROUP:?set CREST_SYNC_TASK_CONSUMER_GROUP}
+      CREST_DATASOURCE_SYNC_TASK_STREAM: ${CREST_DATASOURCE_SYNC_TASK_STREAM:?set CREST_DATASOURCE_SYNC_TASK_STREAM}
+      CREST_DATASOURCE_SYNC_TASK_CONSUMER_GROUP: ${CREST_DATASOURCE_SYNC_TASK_CONSUMER_GROUP:?set CREST_DATASOURCE_SYNC_TASK_CONSUMER_GROUP}
+      CREST_SCHEDULED_TASK_STREAM: ${CREST_SCHEDULED_TASK_STREAM:?set CREST_SCHEDULED_TASK_STREAM}
+      CREST_SCHEDULED_TASK_CONSUMER_GROUP: ${CREST_SCHEDULED_TASK_CONSUMER_GROUP:?set CREST_SCHEDULED_TASK_CONSUMER_GROUP}
+      CREST_WEBSOCKET_BROADCAST_ENABLED: "true"
+      CREST_QUARTZ_CLUSTERED: "true"
+      CREST_QUARTZ_INSTANCE_ID: AUTO
+      CREST_QUARTZ_CLUSTER_CHECKIN_INTERVAL: "10000"
+      CREST_QUARTZ_MISFIRE_THRESHOLD: "60000"
+      CREST_SHUTDOWN_TIMEOUT: 45s
+      CREST_HEALTH_REDIS_ENABLED: "true"
+      CREST_DATASOURCE_POOL_PRELOAD_ENABLED: "false"
+      CREST_PROMETHEUS_ENABLED: "${CREST_PROMETHEUS_ENABLED:-false}"
+      CREST_PROMETHEUS_TOKEN: ${CREST_PROMETHEUS_TOKEN:-}
+    expose:
+      - "8100"
+    volumes:
+      - crest-core-data:/opt/crest/data
+      - crest-core-service-logs:/opt/crest/logs
+    tmpfs:
+      - /tmp:size=128m,mode=1777,uid=10001,gid=10001
+      - /opt/crest/cache:size=256m,uid=10001,gid=10001
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy curl -fsS http://127.0.0.1:8100/api/v1/actuator/health/readiness >/dev/null
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks:
+      - crest-core
+
+  crest-core-web:
+    image: ${CREST_FRONTEND_IMAGE:?set CREST_FRONTEND_IMAGE}
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    cpus: "${CREST_FRONTEND_CPUS:-0.5}"
+    mem_limit: ${CREST_FRONTEND_MEMORY_LIMIT:-512m}
+    pids_limit: 256
+    depends_on:
+      crest-core-service:
+        condition: service_healthy
+    ports:
+      - "${CREST_HTTP_BIND:-127.0.0.1}:${CREST_HTTP_PORT:-8080}:8080"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    tmpfs:
+      - /tmp:size=128m,mode=1777,uid=10001,gid=10001
+      - /var/cache/nginx:size=256m,uid=10001,gid=10001
+      - /var/run/nginx:size=64m,uid=10001,gid=10001
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy wget -qO- http://127.0.0.1:8080/healthz >/dev/null
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - crest-core
+
+networks:
+  crest-core:
+    driver: bridge
+
+volumes:
+  crest-core-data:
+  crest-core-service-logs:

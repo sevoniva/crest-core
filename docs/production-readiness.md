@@ -19,8 +19,9 @@ bash scripts/enterprise-readiness-check.sh
 - `container-base-image-policy-check.sh`：检查 JDK、runtime 和 Nginx 基础镜像引用，拒绝 `latest`；企业 readiness 默认要求三类基础镜像都固定到 `@sha256`。
 - `docker-environment-check.sh`：Docker daemon 和构建磁盘余量预检，默认要求至少 12GiB 可用空间。
 - `docker-build-check.sh`：前后端镜像构建和 Nginx 配置检查。
+- `test-docker-production-check.sh`：检查 `deploy/docker` 的两服务生产交付、外部 Redis Cluster、严格 env、安全基线和 Compose config。
 - `container-image-scan.sh`：Trivy 镜像 CVE 门禁，默认阻断 HIGH/CRITICAL，并在报告落盘后执行 `container-report-check.mjs` 确认前后端镜像报告存在且 HIGH/CRITICAL 为 0。
-- `kind-smoke-test.sh`：真实 Kubernetes API Server 的 server-side dry-run；执行前做 Docker/kind 磁盘预检，启用 `CREST_KIND_APPLY=true` 时会先执行 strict production config gate，再对 apply 后的 kind namespace 执行 runtime check。需要验证当前本地构建镜像时，可同时设置 `CREST_KIND_LOAD_LOCAL_IMAGES=true`，脚本会把 `crest-service:local-check` 和 `crest-web:local-check` 重打为 `sha-<commit>` 形式的不可变标签，装载进 kind，并在 runtime check 前把两个 StatefulSet 切到本地镜像。
+- `kind-smoke-test.sh`：真实 Kubernetes API Server 的 server-side dry-run；执行前做 Docker/kind 磁盘预检，启用 `CREST_KIND_APPLY=true` 时会先执行 strict production config gate，再对 apply 后的 kind namespace 执行 runtime check。需要验证当前本地构建镜像时，可同时设置 `CREST_KIND_LOAD_LOCAL_IMAGES=true`，脚本会把 `crest-core-service:local-check` 和 `crest-core-web:local-check` 重打为 `sha-<commit>` 形式的不可变标签，装载进 kind，并在 runtime check 前把两个 StatefulSet 切到本地镜像。
 
 每个已执行 gate 的 stdout/stderr 会同步写入 `reports/readiness/gate-logs/<gate>.log`，摘要文件记录日志路径和 SHA-256；失败时可把该目录连同 summary 一起归档，作为 CI 和上线审批的排障证据。Docker 预检失败时，summary 会记录只读 Docker 环境诊断报告；磁盘不足时还会记录只读清理计划路径与 SHA-256；历史密钥审计失败时，summary 还会记录历史审计摘要、redacted JSON 报告、SHA-256、finding 数和处置建议。
 

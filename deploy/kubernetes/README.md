@@ -227,8 +227,8 @@ CREST_KIND_APPLY=true \
 bash scripts/kind-smoke-test.sh
 ```
 
-本地 kind 需要验证当前工作区刚构建的镜像时，先生成 `crest-service:local-check` 和
-`crest-web:local-check`，再让脚本重打 `sha-<commit>` 形式的不可变标签并装载进 kind。
+本地 kind 需要验证当前工作区刚构建的镜像时，先生成 `crest-core-service:local-check` 和
+`crest-core-web:local-check`，再让脚本重打 `sha-<commit>` 形式的不可变标签并装载进 kind。
 脚本会把 `crest` 和 `crest-service` 两个 StatefulSet 切到本地镜像后再执行 runtime check。
 
 ```bash

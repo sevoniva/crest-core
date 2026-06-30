@@ -226,10 +226,10 @@ trivy_version=0.71.2
 centralized_ci_tool_installs=true
 EOF
 cat > "${container_report_dir}/trivy-backend.json" <<'JSON'
-{"ArtifactType":"container_image","ArtifactName":"registry.example.internal/crest-service:v1.0.0","Results":[]}
+{"ArtifactType":"container_image","ArtifactName":"registry.example.internal/crest-core-service:v1.0.0","Results":[]}
 JSON
 cat > "${container_report_dir}/trivy-frontend.json" <<'JSON'
-{"ArtifactType":"container_image","ArtifactName":"registry.example.internal/crest-web:v1.0.0","Results":[]}
+{"ArtifactType":"container_image","ArtifactName":"registry.example.internal/crest-core-web:v1.0.0","Results":[]}
 JSON
 {
   echo "$(sha256_file "${container_report_dir}/trivy-backend.json")  trivy-backend.json"
@@ -290,8 +290,8 @@ write_statefulset_evidence() {
 EOF
 }
 
-write_statefulset_evidence crest "registry.example.internal/crest-web:v1.0.0"
-write_statefulset_evidence crest-service "registry.example.internal/crest-service:v1.0.0"
+write_statefulset_evidence crest "registry.example.internal/crest-core-web:v1.0.0"
+write_statefulset_evidence crest-service "registry.example.internal/crest-core-service:v1.0.0"
 cat > "${production_evidence_dir}/service-crest.json" <<'EOF'
 {
   "apiVersion": "v1",
@@ -582,7 +582,7 @@ container_scan_waiver=true
 container_scan_waiver_file=${container_scan_waiver_file}
 container_scan_waiver_file_sha256=$(sha256_file "${container_scan_waiver_file}")
 container_scan_waiver_status=approved
-container_scan_waiver_scope=crest-web,crest-service
+container_scan_waiver_scope=crest-core-web,crest-core-service
 container_scan_waiver_reason=temporary-user-approved-container-image-scan-exception
 container_scan_waiver_approved_by=platform-security
 container_scan_waiver_approval_date=${container_scan_waiver_approval_date}
@@ -593,7 +593,7 @@ EOF
 container_scan_waiver_approval_date="$(date -u +%F)"
 cat > "${container_scan_waiver_file}" <<EOF
 status: approved
-scope: crest-web,crest-service
+scope: crest-core-web,crest-core-service
 reason: temporary-user-approved-container-image-scan-exception
 approved_by: platform-security
 approval_date: ${container_scan_waiver_approval_date}
@@ -1899,7 +1899,7 @@ if bash scripts/production-go-no-go-summary-check.sh "${bad_container_coverage_s
   fail "Go/No-Go summary with unscanned deployed images should fail"
 fi
 
-grep -q 'deployed images missing Trivy scan coverage: registry.example.internal/crest-service:v1.0.0' "${bad_container_coverage_log}" \
+grep -q 'deployed images missing Trivy scan coverage: registry.example.internal/crest-core-service:v1.0.0' "${bad_container_coverage_log}" \
   || fail "bad container coverage failure must explain the unscanned deployed image"
 
 bad_clean_summary_internal_file="${test_root}/crest-core-1.0.0-source-bad-internal.summary.txt"

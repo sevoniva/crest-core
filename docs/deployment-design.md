@@ -2,7 +2,7 @@
 
 ## 1. 部署原则
 
-Crest Core 的生产部署只认一条主路径：Kubernetes 多副本 + 外部 OceanBase Oracle + 外部 Redis Cluster + RWX 共享存储。所有模板文件都作为生成生产 overlay 的输入，不直接作为生产 apply 对象。
+Crest Core 的生产部署提供两条受控路径：Kubernetes 多副本 + 外部 OceanBase Oracle + 外部 Redis Cluster + RWX 共享存储，以及 Docker Compose 单主机 + 外部 OceanBase Oracle + 外部 Redis Cluster。Kubernetes 是多节点高可用主路径；Docker Compose 用于没有 Kubernetes 的单主机生产、预发或受控企业环境。
 
 | 原则 | 要求 |
 | --- | --- |
@@ -73,6 +73,21 @@ flowchart TB
 | Docker | 构建和镜像扫描 |
 | kubectl | 访问目标集群 |
 | kind | 本地 Kubernetes API 验证，可选 |
+
+### 3.3 Docker Compose 生产交付
+
+`deploy/docker` 是本地 Docker Compose 生产交付包，不内置数据库或 Redis：
+
+| 项 | 设计 |
+| --- | --- |
+| 服务名 | `crest-core-web` 前端入口，`crest-core-service` 组合后端 |
+| 副本 | `docker compose up -d --scale crest-core-service=2` |
+| 入口 | 默认绑定 `127.0.0.1:${CREST_HTTP_PORT:-8080}`，生产公网入口由外层 TLS 反向代理暴露 |
+| 外部依赖 | OB Oracle、Redis Cluster、TLS 入口和镜像仓库由企业平台提供 |
+| Redis 隔离 | 与 Kubernetes 相同，必须使用独立 ACL 用户和唯一 hash tag |
+| 安全基线 | 非 root、只读根文件系统、`cap_drop: ALL`、禁止提权、healthcheck、tmpfs scratch |
+
+Docker Compose 不提供 Kubernetes 的跨节点调度、PDB、NetworkPolicy、Ingress Controller 和 RWX StorageClass 能力。需要多节点 HA、节点故障自愈和网络策略时仍使用 Kubernetes；Compose 生产必须在外层补齐 TLS、主机监控、备份和故障演练。
 
 ## 4. 数据库部署
 
@@ -249,6 +264,7 @@ bash scripts/enterprise-readiness-check.sh
 | 基础镜像策略 | `bash scripts/container-base-image-policy-check.sh` | 禁止 `latest`，企业准入要求 digest pin |
 | 镜像构建 | `bash scripts/docker-build-check.sh` | 前后端镜像构建通过 |
 | 镜像漏洞 | `bash scripts/container-image-scan.sh` | HIGH/CRITICAL 为 0 |
+| Docker Compose | `bash scripts/test-docker-production-check.sh` | 两服务交付、外部 Redis Cluster、严格 env 和安全基线通过 |
 | Kubernetes | `bash scripts/kind-smoke-test.sh` | API Server dry-run 通过 |
 | 生产配置 | `bash scripts/production-config-check.sh .local/production-overlay` | 严格检查通过 |
 

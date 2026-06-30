@@ -173,25 +173,25 @@ env \
   CREST_KIND_MANIFEST_DIR="${manifest_dir}" \
   CREST_KIND_APPLY=true \
   CREST_KIND_LOAD_LOCAL_IMAGES=true \
-  CREST_KIND_BACKEND_IMAGE="crest-service:local-check" \
-  CREST_KIND_FRONTEND_IMAGE="crest-web:local-check" \
+  CREST_KIND_BACKEND_IMAGE="crest-core-service:local-check" \
+  CREST_KIND_FRONTEND_IMAGE="crest-core-web:local-check" \
   CREST_KIND_LOCAL_IMAGE_TAG="sha-0123456" \
   CREST_KIND_ROLLOUT_TIMEOUT="19s" \
   bash scripts/kind-smoke-test.sh >/dev/null
 
-grep -Fq "docker image inspect crest-service:local-check" "${log_file}" \
+grep -Fq "docker image inspect crest-core-service:local-check" "${log_file}" \
   || fail "local image mode must verify the backend image exists locally"
-grep -Fq "docker image inspect crest-web:local-check" "${log_file}" \
+grep -Fq "docker image inspect crest-core-web:local-check" "${log_file}" \
   || fail "local image mode must verify the frontend image exists locally"
-grep -Fq "docker tag crest-service:local-check crest-service:sha-0123456" "${log_file}" \
+grep -Fq "docker tag crest-core-service:local-check crest-core-service:sha-0123456" "${log_file}" \
   || fail "local image mode must tag backend image with an immutable runtime tag"
-grep -Fq "docker tag crest-web:local-check crest-web:sha-0123456" "${log_file}" \
+grep -Fq "docker tag crest-core-web:local-check crest-core-web:sha-0123456" "${log_file}" \
   || fail "local image mode must tag frontend image with an immutable runtime tag"
-grep -Fq "kind load docker-image --name crest-kind-test crest-service:sha-0123456 crest-web:sha-0123456" "${log_file}" \
+grep -Fq "kind load docker-image --name crest-kind-test crest-core-service:sha-0123456 crest-core-web:sha-0123456" "${log_file}" \
   || fail "local image mode must load immutable images into kind"
-grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image statefulset/crest crest=crest-web:sha-0123456" "${log_file}" \
+grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image statefulset/crest crest=crest-core-web:sha-0123456" "${log_file}" \
   || fail "local image mode must pin the web StatefulSet to the local image"
-grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image statefulset/crest-service crest-service=crest-service:sha-0123456" "${log_file}" \
+grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image statefulset/crest-service crest-service=crest-core-service:sha-0123456" "${log_file}" \
   || fail "local image mode must pin the service StatefulSet to the local image"
 if grep -Fq "statefulset/crest-worker" "${log_file}" || grep -Fq "statefulset/crest-scheduler" "${log_file}"; then
   fail "local image mode must not reference removed worker or scheduler StatefulSets"

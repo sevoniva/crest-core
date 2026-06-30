@@ -22,8 +22,8 @@ concurrency:
 env:
   IMAGE_TAG: ${{ inputs.image_tag || github.ref_name || 'v1.0.0' }}
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/sevoniva/crest-service
-  FRONTEND_IMAGE: ghcr.io/sevoniva/crest-web
+  BACKEND_IMAGE: ghcr.io/sevoniva/crest-core-service
+  FRONTEND_IMAGE: ghcr.io/sevoniva/crest-core-web
   JDK_IMAGE: ${{ vars.CREST_DOCKER_JDK_IMAGE || 'eclipse-temurin:17-jdk-jammy@sha256:beabb759e6f9653c843958d1d1f5cecb881dfb85aa6081e2bef099ab1260344e' }}
   RUNTIME_IMAGE: ${{ vars.CREST_DOCKER_RUNTIME_IMAGE || 'ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54' }}
   NGINX_IMAGE: ${{ vars.CREST_DOCKER_NGINX_IMAGE || 'nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de' }}
@@ -127,8 +127,8 @@ jobs:
       - name: Build local images for CVE gate
         env:
           CREST_DOCKER_BUILD_ARTIFACTS: "false"
-          CREST_DOCKER_BACKEND_TAG: crest-service:publish-gate
-          CREST_DOCKER_FRONTEND_TAG: crest-web:publish-gate
+          CREST_DOCKER_BACKEND_TAG: crest-core-service:publish-gate
+          CREST_DOCKER_FRONTEND_TAG: crest-core-web:publish-gate
           CREST_DOCKER_JDK_IMAGE: ${{ env.JDK_IMAGE }}
           CREST_DOCKER_RUNTIME_IMAGE: ${{ env.RUNTIME_IMAGE }}
           CREST_DOCKER_NGINX_IMAGE: ${{ env.NGINX_IMAGE }}
@@ -138,8 +138,8 @@ jobs:
 
       - name: Run container image CVE gate
         env:
-          CREST_DOCKER_BACKEND_TAG: crest-service:publish-gate
-          CREST_DOCKER_FRONTEND_TAG: crest-web:publish-gate
+          CREST_DOCKER_BACKEND_TAG: crest-core-service:publish-gate
+          CREST_DOCKER_FRONTEND_TAG: crest-core-web:publish-gate
         run: bash scripts/container-image-scan.sh
 
       - name: Upload container scan reports
@@ -173,9 +173,9 @@ jobs:
             RUNTIME_IMAGE=${{ env.RUNTIME_IMAGE }}
             CREST_BACKEND_COMMIT_ID=${{ github.sha }}
           labels: |
-            org.opencontainers.image.source=https://github.com/sevoniva/Crest
+            org.opencontainers.image.source=https://github.com/sevoniva/crest-core
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.description=Crest backend service
+            org.opencontainers.image.description=Crest Core backend service
             org.opencontainers.image.licenses=GPL-3.0
           tags: |
             ${{ env.BACKEND_IMAGE }}:${{ env.IMAGE_TAG }}
@@ -194,9 +194,9 @@ jobs:
             NGINX_IMAGE=${{ env.NGINX_IMAGE }}
             CREST_FRONTEND_COMMIT_ID=${{ github.sha }}
           labels: |
-            org.opencontainers.image.source=https://github.com/sevoniva/Crest
+            org.opencontainers.image.source=https://github.com/sevoniva/crest-core
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.description=Crest frontend web
+            org.opencontainers.image.description=Crest Core frontend web
             org.opencontainers.image.licenses=GPL-3.0
           tags: |
             ${{ env.FRONTEND_IMAGE }}:${{ env.IMAGE_TAG }}

@@ -196,8 +196,8 @@ redis_prefix="${CREST_REDIS_KEY_PREFIX}"
 ingress_class="${CREST_INGRESS_CLASS_NAME:-nginx}"
 data_storage_size="${CREST_DATA_STORAGE_SIZE:-50Gi}"
 data_storage_class="${CREST_DATA_STORAGE_CLASS}"
-backend_image="${CREST_BACKEND_IMAGE:-ghcr.io/sevoniva/crest-service:v${version}}"
-frontend_image="${CREST_FRONTEND_IMAGE:-ghcr.io/sevoniva/crest-web:v${version}}"
+backend_image="${CREST_BACKEND_IMAGE:-ghcr.io/sevoniva/crest-core-service:v${version}}"
+frontend_image="${CREST_FRONTEND_IMAGE:-ghcr.io/sevoniva/crest-core-web:v${version}}"
 prometheus_enabled="${CREST_PROMETHEUS_ENABLED:-false}"
 
 [[ "${#CREST_AES_KEY}" -eq 32 ]] || fail "CREST_AES_KEY must be exactly 32 characters"
@@ -361,8 +361,8 @@ spec:
                   number: 8100
 EOF
 
-replace_image "${overlay_dir}/08-crest-service-statefulset.yaml" "ghcr.io/sevoniva/crest-service" "${backend_image}"
-replace_image "${overlay_dir}/11-crest-web-statefulset.yaml" "ghcr.io/sevoniva/crest-web" "${frontend_image}"
+replace_image "${overlay_dir}/08-crest-service-statefulset.yaml" "ghcr.io/sevoniva/crest-core-service" "${backend_image}"
+replace_image "${overlay_dir}/11-crest-web-statefulset.yaml" "ghcr.io/sevoniva/crest-core-web" "${frontend_image}"
 
 bash scripts/production-config-check.sh "${overlay_dir}"
 info "rendered strict production overlay at ${overlay_dir}"

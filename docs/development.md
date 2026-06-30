@@ -2,7 +2,7 @@
 
 本文面向参与 Crest Core 开发、部署和发布的人，说明首版工程边界、构建方式、数据库资产和提交前检查。
 
-Crest Core 按全新私有化生产环境维护，默认目标是 OpenJDK 17、OceanBase Oracle、Kubernetes 多副本和外部 Redis Cluster。项目按 GPLv3 发布，开发时必须保留版权和许可证声明，不引入不能公开分发的依赖、驱动或数据。
+Crest Core 按全新私有化生产环境维护，默认目标是 OpenJDK 17、OceanBase Oracle、外部 Redis Cluster，并同时维护 Kubernetes 多副本和 Docker Compose 单主机生产交付。项目按 GPLv3 发布，开发时必须保留版权和许可证声明，不引入不能公开分发的依赖、驱动或数据。
 
 ## 工程边界
 
@@ -11,7 +11,7 @@ Crest Core 按全新私有化生产环境维护，默认目标是 OpenJDK 17、O
 | JDK | OpenJDK 17 |
 | 系统库 | OceanBase Oracle |
 | 业务数据源 | 默认 `obOracle,Excel,ExcelRemote,API` |
-| 部署方式 | Kubernetes 多副本 |
+| 部署方式 | Kubernetes 多副本；Docker Compose 单主机生产交付 |
 | 初始化 | `installer/init-sql/ob-oracle/crest-core-schema.sql` |
 | 升级 | 首版不提供历史版本原地升级 |
 | Redis | 外部共享 Redis Cluster，必须配置独立 key 前缀 |
@@ -32,6 +32,7 @@ Crest Core 按全新私有化生产环境维护，默认目标是 OpenJDK 17、O
 | `drivers` | 随仓库维护的 JDBC 驱动，当前跟踪 OceanBase JDBC |
 | `installer/init-sql/ob-oracle` | 首版 OceanBase Oracle 空库初始化 SQL |
 | `deploy/kubernetes` | Kubernetes 生产交付清单，默认使用外部共享 Redis Cluster |
+| `deploy/docker` | Docker Compose 生产交付包，默认使用外部共享 Redis Cluster |
 | `.github/workflows/docker-publish.yml` | GHCR 镜像构建和发布流程 |
 
 ## 工具链
@@ -170,6 +171,8 @@ export CREST_INITIAL_PASSWORD='<admin-initial-password>'
 
 生产 Kubernetes 部署使用 `CREST_RUNTIME_ROLE=all`，由 `crest-service` 的 2 个后端 Pod 同时承载 HTTP 接口、Redis Streams 任务消费和 Quartz 调度投递。`api`、`worker`、`scheduler` 只保留给本地诊断或特殊容量隔离实验，不作为当前生产基线。
 
+生产 Docker Compose 部署使用 `crest-core-web` 和 `crest-core-service` 两个服务，后端通过 `--scale crest-core-service=2` 启动两个副本；`crest-core-service` 容器默认用 hostname 派生 `CREST_WORKER_ID`，避免两个副本的 worker identity 冲突。
+
 ## 数据库资产
 
 生产只交付一个首版空库初始化文件：
@@ -247,6 +250,21 @@ CREST_KIND_APPLY=true \
 bash scripts/kind-smoke-test.sh
 ```
 
+## Docker Compose 验证
+
+```bash
+node scripts/verify-docker-production.mjs deploy/docker
+bash scripts/test-docker-production-check.sh
+```
+
+严格生产配置检查使用真实 env 文件：
+
+```bash
+node scripts/verify-docker-production.mjs deploy/docker --strict-config .local/crest-docker-production.env
+```
+
+该检查会阻断 `latest` 镜像、占位符、localhost origin、单节点 Redis、默认 Redis ACL 用户、缺失 Redis Cluster hash tag、后端端口直接暴露、`container_name` 和 compose 内置 Redis/数据库服务。
+
 ## 企业级门禁
 
 提交前至少执行：
@@ -261,7 +279,7 @@ bash scripts/container-image-scan.sh
 
 `enterprise-readiness-check.sh` 是企业准入总入口，默认串起 quality、SAST/SCA、镜像构建/扫描和 kind dry-run；真实 overlay、live runtime、上线证据采集、外部生产证据和 git 历史审计通过环境变量显式打开。上线评审时使用 `CREST_READINESS_REQUIRE_GO_NO_GO=true`，该模式会拒绝跳过静态门禁、clean source、生产 overlay、evidence bundle、live runtime check 或外部生产证据检查。唯一允许的静态例外是镜像扫描：设置 `CREST_READINESS_SKIP_CONTAINER_SCAN=true` 时，必须同时设置 `CREST_READINESS_CONTAINER_SCAN_WAIVER=true` 并提供 `CREST_CONTAINER_SCAN_WAIVER_FILE`，否则 Go/No-Go 会失败。
 
-`quality-check.sh` 会强制使用 OpenJDK 17，依次校验 OB Oracle 初始化 SQL、Kubernetes 生产清单、kubectl dry-run、生产 overlay smoke、项目代码规范、前端 TypeScript、ESLint、生产构建、后端测试、前后端静态资源一致性和 release guard。
+`quality-check.sh` 会强制使用 OpenJDK 17，依次校验 OB Oracle 初始化 SQL、Kubernetes 生产清单、Docker Compose 生产交付、kubectl dry-run、生产 overlay smoke、项目代码规范、前端 TypeScript、ESLint、生产构建、后端测试、前后端静态资源一致性和 release guard。
 
 `test-production-overlay-render.sh` 使用合规假值生成 `.local/production-overlay-smoke`，并调用严格生产配置检查，覆盖真实 overlay 生成链路中的 YAML quoting、Secret 注入、Ingress TLS、Redis Cluster hash tag、镜像 tag 和 RWX PVC 配置。
 
@@ -290,7 +308,7 @@ bash scripts/container-image-scan.sh
 
 ```text
 status: approved
-scope: crest-web,crest-service
+scope: crest-core-web,crest-core-service
 reason: approved-temporary-container-image-scan-exception
 approved_by: platform-security
 approval_date: YYYY-MM-DD
