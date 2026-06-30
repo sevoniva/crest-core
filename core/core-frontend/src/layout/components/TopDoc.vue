@@ -1,0 +1,84 @@
+<script lang="ts" setup>
+import topHelpDoc from '@/assets/svg/top-help-doc.svg'
+import { useI18n } from '@/hooks/web/useI18n'
+import docs from '@/assets/svg/icon-maybe_outlined.svg'
+import { computed } from 'vue'
+import { Icon } from '@/components/icon-custom'
+import TopDocCard from '@/layout/components/TopDocCard.vue'
+import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
+const appearanceStore = useAppearanceStoreWithOut()
+// 衔接当前组件交互和状态同步
+const navigateBg = computed(() => appearanceStore.getNavigateBg)
+// 衔接当前组件交互和状态同步
+const help = computed(() => appearanceStore.getHelp)
+const { t } = useI18n()
+
+const cardInfoList = [
+  {
+    name: t('api_pagination.help_documentation'),
+    url: help.value || 'https://github.com/sevoniva/Crest',
+    icon: topHelpDoc
+  }
+]
+</script>
+
+<template>
+  <el-popover
+    :show-arrow="false"
+    popper-class="top-popover"
+    placement="bottom-end"
+    width="210"
+    trigger="hover"
+  >
+    <top-doc-card
+      :span="12"
+      v-for="(item, index) in cardInfoList"
+      :key="index"
+      :card-info="item"
+    ></top-doc-card>
+    <template #reference>
+      <div
+        class="sys-setting"
+        :class="{ 'is-light-setting': navigateBg && navigateBg === 'light' }"
+      >
+        <el-icon>
+          <Icon name="docs"><docs class="svg-icon" /></Icon>
+        </el-icon>
+      </div>
+    </template>
+  </el-popover>
+</template>
+
+<style lang="less" scoped>
+.sys-setting {
+  margin: 0 10px;
+  padding: 5px;
+  height: 28px;
+  width: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover {
+    background-color: #1e2738;
+  }
+}
+.is-light-setting {
+  &:hover {
+    background-color: #1f23291a !important;
+  }
+}
+</style>
+
+<style lang="less">
+.top-popover {
+  display: flex;
+  padding: 8px !important;
+  flex-wrap: wrap;
+  .doc-card {
+    margin: auto;
+  }
+}
+</style>

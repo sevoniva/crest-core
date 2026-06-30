@@ -1,0 +1,236 @@
+<template>
+  <!-- 弹层画布区域，用于承载独立于主画布的浮层组件。 -->
+  <div
+    class="pop-area"
+    :style="popCanvasStyle"
+    :class="{ 'preview-pop': showPosition === 'preview' }"
+    @mousedown.stop
+    @mousedup.stop
+  >
+    <div style="width: 100%; height: 100%">
+      <div v-if="popComponentData && popComponentData.length > 0" class="pop-content">
+        <!-- 复用组件包装器，保持与主画布一致的渲染能力。 -->
+        <ComponentWrapper
+          v-for="(item, index) in popComponentData"
+          :id="'component-pop-' + item.id"
+          :view-info="canvasViewInfo[item.id]"
+          :key="index"
+          :config="item"
+          :index="index"
+          :dv-info="dvInfo"
+          :pop-active="curActive(item)"
+          :show-position="showPosition"
+          :style="customPopStyle"
+          :scale="innerScale"
+        />
+      </div>
+      <div
+        v-else-if="showPosition === 'popEdit'"
+        class="pop-area-main"
+        :class="{ 'pop-area-active': areaActive }"
+        :style="baseStyle"
+        @drop="handleDrop"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+      >
+        <span>{{ t('visualization.pop_area_tips') }}</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, PropType, ref, toRefs } from 'vue'
+import { findDragComponent } from '@/utils/canvasUtils'
+import { guid } from '@/views/visualized/data/dataset/form/util'
+import { changeComponentSizeWithScale } from '@/utils/changeComponentsSizeWithScale'
+import { adaptCurThemeCommonStyle } from '@/utils/canvasStyle'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
+import eventBus from '@/utils/eventBus'
+import ComponentWrapper from '@/components/data-visualization/canvas/ComponentWrapper.vue'
+import { ElMessage } from 'element-plus-secondary'
+import { storeToRefs } from 'pinia'
+import { useI18n } from '@/hooks/web/useI18n'
+const dvMainStore = dvMainStoreWithOut()
+const snapshotStore = snapshotStoreWithOut()
+// 标记弹层拖拽投放区域是否处于激活状态
+const areaActive = ref(false)
+const { t } = useI18n()
+
+// 定义弹层画布渲染所需的数据和显示场景
+const props = defineProps({
+  dvInfo: {
+    type: Object as PropType<Record<string, any>>,
+    required: true
+  },
+  canvasStyleData: {
+    type: Object as PropType<Record<string, any>>,
+    required: true
+  },
+  popComponentData: {
+    type: Array as PropType<Array<Record<string, any>>>,
+    required: true
+  },
+  canvasViewInfo: {
+    type: Object as PropType<Record<string, any>>,
+    required: true
+  },
+  canvasId: {
+    type: String,
+    required: false,
+    default: 'canvas-main'
+  },
+  scale: {
+    type: Number,
+    required: false,
+    default: 1
+  },
+  showPosition: {
+    type: String,
+    required: false,
+    default: 'preview'
+  },
+  canvasState: {
+    type: Object as PropType<Record<string, any>>,
+    required: true
+  }
+})
+
+const { canvasStyleData, popComponentData, canvasViewInfo, scale, canvasState } = toRefs(props)
+const { curComponent } = storeToRefs(dvMainStore)
+// 计算空弹层投放区域的基础样式
+const baseStyle = computed(() => {
+  return {
+    fontSize: 30 * props.scale + 'px',
+    height: canvasStyleData.value.height * props.scale * 0.15 + 'px'
+  }
+})
+
+// 根据预览或编辑场景计算内部缩放值
+const innerScale = computed(() =>
+  props.showPosition === 'preview' ? props.scale : props.scale * 100
+)
+
+// 判断弹层组件是否为当前编辑激活项
+const curActive = item => {
+  return curComponent.value?.id === item.id && props.showPosition === 'popEdit'
+}
+
+// 进入拖拽区域时激活投放状态
+const handleDragOver = e => {
+  areaActive.value = true
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'copy'
+}
+
+// 离开拖拽区域时取消投放状态
+const handleDragLeave = () => {
+  areaActive.value = false
+}
+
+// 处理查询组件拖入弹层区域
+const handleDrop = e => {
+  areaActive.value = false
+  // 仅当弹层区域尚未存在隐藏组件时允许投放
+  if (!popComponentData.value || popComponentData.value.length === 0) {
+    e.preventDefault()
+    e.stopPropagation()
+    const componentInfo = e.dataTransfer.getData('id')
+    if (componentInfo) {
+      const component = findDragComponent(componentInfo)
+      if (component.component === 'VQuery') {
+        component.style.top = 0
+        component.style.left = 0
+        component.id = guid()
+        component.category = 'hidden'
+        component.commonBackground.backgroundColor = 'rgba(41, 41, 41, 1)'
+        changeComponentSizeWithScale(component)
+        dvMainStore.addComponent({ component: component, index: undefined })
+        adaptCurThemeCommonStyle(component)
+        snapshotStore.recordSnapshotCache('renderChart', component.id)
+      } else {
+        ElMessage.error(t('visualization.support_query'))
+      }
+    }
+  }
+}
+
+// 画布拖拽结束时重置投放激活状态
+const handleDragEnd = () => {
+  areaActive.value = false
+}
+
+// 弹层组件包装器占满弹层区域
+const customPopStyle = computed(() => {
+  return {
+    width: '100%',
+    height: '100%'
+  }
+})
+
+// 根据隐藏查询组件数量计算弹层画布高度
+const popCanvasStyle = computed(() => {
+  if (canvasState.value.curPointArea === 'hidden') {
+    let queryCount = 0
+    popComponentData.value.forEach(popItem => {
+      queryCount = 0 + popItem.propValue.length
+    })
+    return {
+      height: queryCount < 8 ? '15%' : (queryCount * 45 * scale.value) / 4 + 'px'
+    }
+  } else {
+    return { height: '0px!important', overflow: 'hidden', border: '0!important' }
+  }
+})
+
+onMounted(() => {
+  eventBus.on('handleDragEnd-canvas-main', handleDragEnd)
+})
+
+onBeforeUnmount(() => {
+  eventBus.off('handleDragEnd-canvas-main', handleDragEnd)
+})
+</script>
+
+<style lang="less" scoped>
+.pop-area {
+  position: absolute;
+  width: 100%;
+  max-height: 50%;
+  top: 0;
+  left: 0;
+  border: 1px dashed rgba(67, 67, 67, 1);
+  background: rgba(26, 26, 26, 1);
+  transition: height 0.2s ease;
+  z-index: 1;
+}
+
+.preview-pop {
+  border: 1px rgba(67, 67, 67, 1) !important;
+}
+.pop-area-main {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  color: rgba(166, 166, 166, 1);
+  top: 0;
+  left: 0;
+}
+.pop-area-active {
+  border: 1px dashed rgba(59, 130, 246, 1) !important;
+  background: #1d2331 !important;
+}
+.pop-content {
+  position: static !important;
+  width: 100%;
+  height: 100%;
+  :deep(.no-list-label .container .ed-button) {
+    font-size: 32px;
+  }
+  :deep(.no-list-label .container) {
+    font-size: 32px;
+  }
+}
+</style>

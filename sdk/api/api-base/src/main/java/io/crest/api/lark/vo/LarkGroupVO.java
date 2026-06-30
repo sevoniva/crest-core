@@ -1,0 +1,18 @@
+package io.crest.api.lark.vo;
+
+import io.crest.api.lark.dto.LarkGroupItem;
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.List;
+
+@Data
+// 定义页面展示或接口返回的数据结构
+public class LarkGroupVO implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 39710350567348130L;
+
+    private boolean valid;
+    private List<LarkGroupItem> groupList;
+}

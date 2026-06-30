@@ -1,0 +1,22 @@
+package io.crest.auth.vo;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+
+@Data
+// 定义页面展示或接口返回的数据结构
+public class MfaItem implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 6647534143991435022L;
+
+    private boolean enabled;
+
+    private boolean ready;
+
+    @JsonSerialize(using= ToStringSerializer.class)
+    private Long uid;
+}

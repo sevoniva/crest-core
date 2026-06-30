@@ -1,0 +1,390 @@
+import { defineStore } from 'pinia'
+import { store } from '@/store/index'
+import { defaultFont, list } from '@/api/font'
+import { uiLoadApi } from '@/api/login'
+import { useCache } from '@/hooks/web/useCache'
+import colorFunctions from 'less/lib/less/functions/color.js'
+import colorTree from 'less/lib/less/tree/color.js'
+import { useEmbedded } from '@/store/modules/embedded'
+import { setTitle } from '@/utils/utils'
+
+const embeddedStore = useEmbedded()
+const basePath = import.meta.env.VITE_API_BASEPATH
+const baseUrl = basePath + '/appearance/image/'
+import { isBtnShow } from '@/utils/utils'
+interface AppearanceState {
+  themeColor?: string
+  customColor?: string
+  navigateBg?: string
+  navigate?: string
+  mobileLogin?: string
+  mobileLoginBg?: string
+  help?: string
+  showDoc?: string
+  bg?: string
+  login?: string
+  showSlogan?: string
+  slogan?: string
+  web?: string
+  name?: string
+  foot?: string
+  footContent?: string
+  loaded: boolean
+  showDemoTips?: boolean
+  demoTipsContent?: string
+  community: boolean
+  siteTitle?: string
+  fontList: Array<{ name: string; id: string; isDefault: boolean }>
+}
+const { wsCache } = useCache()
+export const useAppearanceStore = defineStore('appearanceStore', {
+  state: (): AppearanceState => {
+    return {
+      themeColor: '',
+      customColor: '',
+      navigateBg: '',
+      navigate: '',
+      mobileLogin: '',
+      mobileLoginBg: '',
+      help: '',
+      showDoc: '0',
+      bg: '',
+      login: '',
+      showSlogan: 'true',
+      slogan: '',
+      web: '',
+      name: '',
+      foot: 'false',
+      footContent: '',
+      loaded: false,
+      showDemoTips: false,
+      demoTipsContent: '',
+      community: true,
+      siteTitle: 'Crest',
+      fontList: []
+    }
+  },
+  getters: {
+    getNavigate(): string {
+      if (this.navigate) {
+        return baseUrl + this.navigate
+      }
+      return null
+    },
+    getMobileLogin(): string {
+      if (this.mobileLogin) {
+        return baseUrl + this.mobileLogin
+      }
+      return null
+    },
+    getMobileLoginBg(): string {
+      if (this.mobileLoginBg) {
+        return baseUrl + this.mobileLoginBg
+      }
+      return null
+    },
+    getHelp(): string {
+      return this.help
+    },
+    getThemeColor(): string {
+      return this.themeColor
+    },
+    getCustomColor(): string {
+      return this.customColor
+    },
+    getNavigateBg(): string {
+      return this.navigateBg
+    },
+    getBg(): string {
+      if (this.bg) {
+        return baseUrl + this.bg
+      }
+      return null
+    },
+    getLogin(): string {
+      if (this.login) {
+        return baseUrl + this.login
+      }
+      return null
+    },
+    getShowSlogan(): string {
+      return this.showSlogan
+    },
+    getSlogan(): string {
+      return this.slogan
+    },
+    getWeb(): string {
+      if (this.web) {
+        return baseUrl + this.web
+      }
+      return null
+    },
+    getName(): string {
+      return this.name
+    },
+    getLoaded(): boolean {
+      return this.loaded
+    },
+    getFoot(): string {
+      return this.foot
+    },
+    getFootContent(): string {
+      return this.footContent
+    },
+    getShowDemoTips(): boolean {
+      return this.showDemoTips
+    },
+    getDemoTipsContent(): string {
+      return this.demoTipsContent
+    },
+    getCommunity(): boolean {
+      return this.community
+    },
+    getSiteTitle(): string {
+      return this.siteTitle || 'Crest'
+    },
+    getShowDoc(): boolean {
+      return isBtnShow(this.showDoc)
+    }
+  },
+  actions: {
+    setNavigate(data: string) {
+      this.navigate = data
+    },
+    setMobileLogin(data: string) {
+      this.mobileLogin = data
+    },
+    async setFontList() {
+      const res = await list()
+      this.fontList = res || []
+    },
+    setCurrentFont(name) {
+      const currentFont = this.fontList.find(ele => ele.name === name)
+      if (currentFont) {
+        document.documentElement.style.setProperty('--crest-custom_font', `${name}`)
+        document.documentElement.style.setProperty('--van-base-font', `${name}`)
+        if (!currentFont.fileTransName) {
+          return
+        }
+        let fontStyleElement = document.querySelector(`[id="crest-custom_font${name}"]`)
+        if (!fontStyleElement) {
+          fontStyleElement = document.createElement('style')
+          fontStyleElement.setAttribute('id', `crest-custom_font${name}`)
+          document.querySelector('head').appendChild(fontStyleElement)
+        }
+        fontStyleElement.innerHTML = `@font-face {
+            font-family: '${name}';
+            src: url(${
+              embeddedStore.baseUrl
+                ? (embeddedStore.baseUrl + basePath).replace('/./', '/')
+                : basePath
+            }/typeface/download/${currentFont.fileTransName});
+            font-weight: normal;
+            font-style: normal;
+          }`
+      }
+    },
+    setMobileLoginBg(data: string) {
+      this.mobileLoginBg = data
+    },
+    setHelp(data: string) {
+      this.help = data
+    },
+    setNavigateBg(data: string) {
+      this.navigateBg = data
+    },
+    setThemeColor(data: string) {
+      this.themeColor = data
+    },
+    setCustomColor(data: string) {
+      this.customColor = data
+    },
+    setLoaded(data: boolean) {
+      this.loaded = data
+    },
+    async setAppearance(isCrestBi?: boolean, force = false) {
+      const desktop = wsCache.get('app.desktop')
+      if (desktop) {
+        this.loaded = true
+        this.community = true
+      }
+      if (this.loaded && !force) {
+        return
+      }
+      defaultFont().then(res => {
+        const [font] = res || []
+        setDefaultFont(
+          `${
+            embeddedStore.baseUrl
+              ? (embeddedStore.baseUrl + basePath).replace('/./', '/')
+              : basePath
+          }/typeface/download/${font?.fileTransName}`,
+          font?.name,
+          font?.fileTransName
+        )
+        // 更新当前配置并同步相关状态
+        function setDefaultFont(url, name, fileTransName) {
+          let fontStyleElement = document.querySelector('#crest-custom_font')
+          if (!fontStyleElement) {
+            fontStyleElement = document.createElement('style')
+            fontStyleElement.setAttribute('id', 'crest-custom_font')
+            document.querySelector('head').appendChild(fontStyleElement)
+          }
+          if (!name) {
+            fontStyleElement.innerHTML = ''
+            document.documentElement.style.removeProperty('--crest-custom_font')
+            document.documentElement.style.removeProperty('--van-base-font')
+            return
+          }
+          fontStyleElement.innerHTML = fileTransName
+            ? `@font-face {
+                font-family: '${name}';
+                src: url(${url});
+                font-weight: normal;
+                font-style: normal;
+                }`
+            : ''
+          document.documentElement.style.setProperty('--crest-custom_font', `${name}`)
+          document.documentElement.style.setProperty('--van-base-font', `${name}`)
+        }
+      })
+      if (!isCrestBi) {
+        document.title = ''
+      }
+      const res = await uiLoadApi()
+      this.loaded = true
+      const resData = res.data
+      if (!resData?.length) {
+        if (!isCrestBi) {
+          document.title = 'Crest'
+          setLinkIcon()
+        }
+        this.siteTitle = 'Crest'
+        return
+      }
+      const data: AppearanceState = { loaded: false, community: true, fontList: [] }
+      let isCommunity = false
+      resData.forEach(item => {
+        data[item.pkey] = item.pval
+        if (item.pkey === 'community') {
+          isCommunity = true
+        }
+      })
+      data.community = isCommunity
+      this.community = data.community
+      this.siteTitle = data.siteTitle || 'Crest'
+      if (this.community) {
+        this.showDemoTips = data.showDemoTips
+        this.demoTipsContent = data.demoTipsContent
+        this.loaded = true
+        applyDocumentTitle(data.siteTitle)
+        setLinkIcon()
+        return
+      }
+      this.navigate = data.navigate
+      this.mobileLogin = data.mobileLogin
+      this.mobileLoginBg = data.mobileLoginBg
+      this.help = data.help
+      this.showDoc = data.showDoc
+      this.navigateBg = data.navigateBg
+      this.themeColor = data.themeColor
+      this.customColor = data.customColor
+      if (this.themeColor === 'custom' && this.customColor) {
+        document.documentElement.style.setProperty('--ed-color-primary', this.customColor)
+        document.documentElement.style.setProperty('--van-blue', this.customColor)
+        document.documentElement.style.setProperty(
+          '--ed-color-primary-light-5',
+          colorFunctions
+            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), { value: 40 })
+            .toRGB()
+        )
+        document.documentElement.style.setProperty(
+          '--ed-color-primary-light-3',
+          colorFunctions
+            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), { value: 15 })
+            .toRGB()
+        )
+        document.documentElement.style.setProperty(
+          '--ed-color-primary-dark-20',
+          colorFunctions
+            .mix(new colorTree('000000'), new colorTree(this.customColor.substr(1)), { value: 20 })
+            .toRGB()
+        )
+        document.documentElement.style.setProperty('--ed-color-primary-1a', `${this.customColor}1a`)
+        document.documentElement.style.setProperty('--ed-color-primary-33', `${this.customColor}33`)
+        document.documentElement.style.setProperty('--ed-color-primary-99', `${this.customColor}99`)
+        document.documentElement.style.setProperty(
+          '--ed-color-primary-dark-2',
+          colorFunctions
+            .mix(new colorTree('000000'), new colorTree(this.customColor.substr(1)), { value: 15 })
+            .toRGB()
+        )
+      } else if (document.documentElement.style.getPropertyValue('--ed-color-primary')) {
+        document.documentElement.style.setProperty('--ed-color-primary', '#3B82F6')
+        document.documentElement.style.removeProperty('--ed-color-primary-light-3')
+        document.documentElement.style.removeProperty('--ed-color-primary-light-5')
+        document.documentElement.style.removeProperty('--ed-color-primary-1a')
+        document.documentElement.style.removeProperty('--ed-color-primary-33')
+        document.documentElement.style.removeProperty('--ed-color-primary-99')
+        document.documentElement.style.removeProperty('--ed-color-primary-dark-2')
+        document.documentElement.style.removeProperty('--ed-color-primary-dark-20')
+      }
+      this.bg = data.bg
+      this.login = data.login
+      this.showSlogan = data.showSlogan
+      this.slogan = data.slogan
+      this.web = data.web
+      this.name = data.name
+      this.foot = data.foot
+      this.footContent = data.footContent
+      if (isCrestBi) return
+      if (this.name) {
+        applyDocumentTitle(this.name)
+      } else {
+        applyDocumentTitle(data.siteTitle)
+      }
+      setLinkIcon(this.web)
+    }
+  }
+})
+
+// 更新当前配置并同步相关状态
+const applyDocumentTitle = (siteTitle?: string) => {
+  const normalized = siteTitle?.trim()
+  const title = normalized || 'Crest'
+  document.title = title
+  setTitle(title)
+}
+
+// 更新当前配置并同步相关状态
+const setLinkIcon = (linkWeb?: string) => {
+  let link = document.querySelector('link[rel="icon"]')
+  if (!link) {
+    link = document.createElement('link')
+    link.setAttribute('rel', 'icon')
+    document.head.appendChild(link)
+  }
+  if (link) {
+    if (linkWeb) {
+      link['href'] = baseUrl + linkWeb
+    } else {
+      link['href'] = '/favicon.svg'
+    }
+    link.setAttribute('type', 'image/svg+xml')
+  }
+  let shortcut = document.querySelector('link[rel="shortcut icon"]')
+  if (!shortcut) {
+    shortcut = document.createElement('link')
+    shortcut.setAttribute('rel', 'shortcut icon')
+    document.head.appendChild(shortcut)
+  }
+  if (shortcut) {
+    shortcut['href'] = linkWeb ? baseUrl + linkWeb : '/favicon.svg'
+    shortcut.setAttribute('type', 'image/svg+xml')
+  }
+}
+
+// 更新状态仓库中的业务数据
+export const useAppearanceStoreWithOut = () => {
+  return useAppearanceStore(store)
+}

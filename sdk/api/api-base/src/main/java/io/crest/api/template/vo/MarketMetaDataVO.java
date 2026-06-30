@@ -1,0 +1,30 @@
+package io.crest.api.template.vo;
+
+import io.crest.constant.CommonConstants;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+// 定义页面展示或接口返回的数据结构
+public class MarketMetaDataVO {
+    private String slug;
+    private String value;
+    private String label;
+
+    // market 模板中心 manage 模板管理 public 公共
+    private String source = CommonConstants.TEMPLATE_SOURCE.MARKET;
+
+    public MarketMetaDataVO(String value, String label) {
+        this.label = label;
+        this.value = value;
+        this.slug = value;
+    }
+
+    public MarketMetaDataVO(String value, String label,String source) {
+        this.label = label;
+        this.value = value;
+        this.slug = value;
+        this.source = source;
+    }
+}

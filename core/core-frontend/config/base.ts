@@ -1,0 +1,70 @@
+import pkg from '../package.json'
+import viteCompression from 'vite-plugin-compression'
+
+const enableGzip = process.env.CREST_ENABLE_VITE_GZIP === 'true'
+const emptyProxyPackages = new Set([
+  'lodash-unified',
+  'vue-demi',
+  '@vue/devtools-api',
+  '@vant/popperjs',
+  '@floating-ui',
+  '@floating-ui/dom',
+  '@floating-ui/core',
+  '@antv/vendor',
+  'javascript-natural-sort',
+  'escape-latex',
+  'seedrandom',
+  'tiny-emitter'
+])
+
+// 衔接当前组件交互和状态同步
+function vendorChunkName(id: string) {
+  if (!id.includes('node_modules')) {
+    return
+  }
+  const modulePath = id.toString().replace(/\\/g, '/').split('node_modules/').pop()
+  if (!modulePath) {
+    return
+  }
+  const parts = modulePath.split('/')
+  const packageName = parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0]
+  if (emptyProxyPackages.has(packageName) || emptyProxyPackages.has(parts[0])) {
+    return
+  }
+  return packageName
+    .replace(/^@/, '')
+    .replace(/[\\/]/g, '-')
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/^\.+/, 'vendor-')
+}
+
+export default {
+  plugins: enableGzip
+    ? [
+        viteCompression({
+          // gzip静态资源压缩配置
+          verbose: false, // 是否在控制台输出压缩结果
+          disable: false, // 是否禁用压缩
+          threshold: 10240, // 启用压缩的文件大小限制
+          algorithm: 'gzip', // 采用的压缩算法
+          ext: '.gz' // 生成的压缩包后缀
+        })
+      ]
+    : [],
+  build: {
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 10000,
+    rollupOptions: {
+      output: {
+        // 用于命名代码拆分时创建的共享块的输出命名
+        chunkFileNames: `assets/chunk/[name]-[hash]-${pkg.version}-${pkg.name}.js`,
+        assetFileNames: `assets/[ext]/[name]-[hash]-${pkg.version}-${pkg.name}.[ext]`,
+        entryFileNames: `js/[name]-[hash]-${pkg.version}-${pkg.name}.js`,
+        manualChunks(id: string) {
+          return vendorChunkName(id)
+        }
+      }
+    },
+    sourcemap: false
+  }
+}

@@ -1,0 +1,72 @@
+package io.crest.api.permissions.user.vo;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import io.crest.api.permissions.variable.dto.SysVariableValueItem;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.io.Serializable;
+import java.util.List;
+
+@Schema(description = "用户详情VO")
+@Data
+// 定义页面展示或接口返回的数据结构
+public class UserFormVO implements Serializable {
+
+    @Schema(description = "ID")
+    @JsonSerialize(using= ToStringSerializer.class)
+    private Long id;
+
+    @Schema(description = "账号")
+    private String account;
+
+    @Schema(description = "名称")
+    private String name;
+
+    @Schema(description = "角色ID集合")
+    private List<String> roleIds;
+
+    @Schema(description = "组织ID")
+    @JsonSerialize(using= ToStringSerializer.class)
+    private Long oid;
+
+    @Schema(description = "组织名称")
+    private String orgName;
+
+    @Schema(description = "邮箱")
+    private String email;
+
+    @Schema(description = "状态")
+    private Boolean enable;
+
+    @Schema(description = "电话前缀")
+    private String phonePrefix;
+
+    @Schema(description = "电话")
+    private String phone;
+
+    @Schema(description = "IP")
+    private String ip;
+
+    @Schema(description = "模式")
+    private String model;
+
+    @Schema(description = "MFA状态")
+    private Boolean mfaEnable = false;
+
+    @Schema(description = "用户来源")
+    private Integer origin = 0;
+
+    @Schema(description = "认证类型")
+    private String authType;
+
+    @Schema(description = "外部身份ID")
+    private String externalId;
+
+    @Schema(description = "最近登录时间")
+    private Long lastLoginTime;
+
+    @Schema(description = "系统变量")
+    private List<SysVariableValueItem> variables;
+}

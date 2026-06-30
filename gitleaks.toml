@@ -1,0 +1,63 @@
+title = "Crest Core secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Project-specific non-secret patterns and generated artifacts"
+condition = "OR"
+regexTarget = "match"
+paths = [
+  '''^core/core-backend/src/main/resources/static/''',
+  '''^core/core-backend/target/''',
+  '''^core/core-frontend/dist/''',
+  '''^reports/''',
+  '''^\.cache/''',
+  '''^\.local/''',
+  '''^\.git/''',
+  '''^.*node_modules/''',
+  '''^.*target/''',
+]
+regexes = [
+  '''aes_key\s+CLOB\s+NOT\s+NULL''',
+  '''sm2_private_key\s+CLOB\s+DEFAULT\s+NULL''',
+  '''this\.sm2PrivateKey\s+=\s+sm2PrivateKey''',
+  '''\{CREST_INITIAL_PASSWORD_REQUIRED\}''',
+  '''CHANGE_ME_[A-Z0-9_]+''',
+]
+
+[[allowlists]]
+description = "Historical SM4 unit-test constants; deterministic test vectors, not deployable credentials"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^core/core-backend/src/test/java/io/crest/security/SmCryptoUtilsTest\.java$''',
+]
+regexes = [
+  '''String\s+key\s*=\s*"[^"]{16}"''',
+  '''System\.setProperty\("crest\.crypto\.sm4-key",\s*"[^"]{16}"\)''',
+]
+
+[[allowlists]]
+description = "Historical DataEase Playwright image tags; not secrets"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^\.github/workflows/docker-publish\.yml$''',
+  '''^\.github/workflows/ghcr-mirror-images\.yml$''',
+  '''^installer/dataease/docker-compose-playwright\.yml$''',
+]
+regexes = [
+  '''(?:registry\.cn-qingdao\.aliyuncs\.com/dataease/de-playwright-api|ghcr\.io/sevoniva/dataease-2\.10\.22-playwright-api):v1\.58\.2-noble-0421''',
+]
+
+[[allowlists]]
+description = "Historical observability documentation used a placeholder bearer token"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^docs/observability\.md$''',
+]
+regexes = [
+  '''--header='Authorization:\s*Bearer\s*[^']*(?:token|TOKEN|example|EXAMPLE|placeholder|PLACEHOLDER|your|YOUR|CHANGE_ME|<|\$\{)[^']*' ''',
+]

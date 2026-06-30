@@ -1,0 +1,41 @@
+package io.crest.api.visualization.request;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import io.crest.constant.CommonConstants;
+import lombok.Data;
+
+/**
+ * 组件跳转配置基础请求对象。
+ */
+@Data
+public class VisualizationLinkJumpBaseRequest {
+
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long sourceDvId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long sourceViewId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long sourceFieldId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long targetDvId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long targetViewId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long linkJumpId;
+
+    private Boolean activeStatus;
+
+    private String resourceTable = CommonConstants.RESOURCE_TABLE.CORE;
+
+    public VisualizationLinkJumpBaseRequest() {
+    }
+
+    public VisualizationLinkJumpBaseRequest(Long sourceDvId, Long sourceViewId, Long targetDvId, Long targetViewId, Long linkJumpId) {
+        this.sourceDvId = sourceDvId;
+        this.sourceViewId = sourceViewId;
+        this.targetDvId = targetDvId;
+        this.targetViewId = targetViewId;
+        this.linkJumpId = linkJumpId;
+    }
+}

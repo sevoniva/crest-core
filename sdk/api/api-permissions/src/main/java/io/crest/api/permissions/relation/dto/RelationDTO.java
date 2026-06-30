@@ -1,0 +1,20 @@
+package io.crest.api.permissions.relation.dto;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+// 定义接口请求或返回数据的传输结构
+public class RelationDTO {
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long id;
+    private String name;
+    private String auths;
+    private String type;
+    private String creator;
+    private Long updateTime;
+    private List<RelationDTO> subRelation;
+}

@@ -1,0 +1,19 @@
+package io.crest.api.permissions.user.vo;
+
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+
+@Data
+// 定义页面展示或接口返回的数据结构
+public class CurIpVO implements Serializable {
+    @Serial
+    private static final long serialVersionUID = -3025566841330382707L;
+
+    private String account;
+
+    private String name;
+
+    private String ip;
+}

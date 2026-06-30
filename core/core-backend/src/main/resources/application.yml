@@ -1,0 +1,224 @@
+server:
+  port: 8100
+  max-http-request-header-size: 500KB
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 70000
+spring:
+  profiles:
+    active: '@profiles.active@'
+  application:
+    name: core-backend
+  messages:
+    encoding: UTF-8
+  main:
+    allow-circular-references: true
+  lifecycle:
+    timeout-per-shutdown-phase: ${CREST_SHUTDOWN_TIMEOUT:45s}
+  servlet:
+    multipart:
+      max-file-size: ${CREST_UPLOAD_MAX_FILE_SIZE:500MB}
+      max-request-size: ${CREST_UPLOAD_MAX_REQUEST_SIZE:500MB}
+  cache:
+    type: jcache
+    jcache:
+      config: classpath:ehcache/ehcache.xml
+    redis:
+      use-key-prefix: true
+      key-prefix: ${CREST_REDIS_CACHE_KEY_PREFIX:${CREST_REDIS_KEY_PREFIX:crest:core}:cache:}
+  data:
+    redis:
+      host: ${CREST_REDIS_HOST:127.0.0.1}
+      port: ${CREST_REDIS_PORT:6379}
+      password: ${CREST_REDIS_PASSWORD:}
+      database: ${CREST_REDIS_DATABASE:0}
+  jackson:
+    parser:
+      allow-numeric-leading-zeros: true
+  quartz:
+    scheduler-name: crestSyncJob
+    job-store-type: jdbc
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceId: ${CREST_QUARTZ_INSTANCE_ID:AUTO}
+          jobStore:
+            tablePrefix: core_schedule_
+            isClustered: ${CREST_QUARTZ_CLUSTERED:true}
+            clusterCheckinInterval: ${CREST_QUARTZ_CLUSTER_CHECKIN_INTERVAL:10000}
+            misfireThreshold: ${CREST_QUARTZ_MISFIRE_THRESHOLD:60000}
+management:
+  endpoints:
+    enabled-by-default: false
+    web:
+      base-path: ${CREST_MANAGEMENT_BASE_PATH:/api/v1/actuator}
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      enabled: true
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,redis
+    prometheus:
+      enabled: ${CREST_PROMETHEUS_ENABLED:false}
+  health:
+    redis:
+      enabled: ${CREST_HEALTH_REDIS_ENABLED:true}
+  prometheus:
+    metrics:
+      export:
+        enabled: ${CREST_PROMETHEUS_ENABLED:false}
+  metrics:
+    tags:
+      application: ${spring.application.name:crest-service}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.9,0.95,0.99
+crest:
+  version: '@project.version@'
+  build:
+    commit-id: ${CREST_BACKEND_COMMIT_ID:unknown}
+  redis:
+    key-prefix: ${CREST_REDIS_KEY_PREFIX:crest:core}
+  runtime:
+    role: ${CREST_RUNTIME_ROLE:all}
+  production-mode: ${CREST_PRODUCTION_MODE:false}
+  lock:
+    key-prefix: ${CREST_LOCK_KEY_PREFIX:${CREST_REDIS_KEY_PREFIX:crest:core}:lock}
+    default-ttl-seconds: ${CREST_LOCK_DEFAULT_TTL_SECONDS:1800}
+  websocket:
+    broadcast:
+      enabled: ${CREST_WEBSOCKET_BROADCAST_ENABLED:}
+      channel: ${CREST_WEBSOCKET_BROADCAST_CHANNEL:${CREST_REDIS_KEY_PREFIX:crest:core}:pubsub:websocket}
+  task:
+    queue:
+      enabled: ${CREST_TASK_QUEUE_ENABLED:}
+      export:
+        stream: ${CREST_EXPORT_TASK_STREAM:${CREST_REDIS_KEY_PREFIX:crest:core}:stream:export-task}
+        consumer-group: ${CREST_EXPORT_TASK_CONSUMER_GROUP:${CREST_REDIS_KEY_PREFIX:crest:core}:group:export-workers}
+        batch-size: ${CREST_EXPORT_TASK_BATCH_SIZE:4}
+        block-millis: ${CREST_EXPORT_TASK_BLOCK_MILLIS:1000}
+        poll-delay-millis: ${CREST_EXPORT_TASK_POLL_DELAY_MILLIS:1000}
+        recovery-interval-millis: ${CREST_EXPORT_TASK_RECOVERY_INTERVAL_MILLIS:60000}
+        recovery-batch-size: ${CREST_EXPORT_TASK_RECOVERY_BATCH_SIZE:100}
+        stale-millis: ${CREST_EXPORT_TASK_STALE_MILLIS:1800000}
+        enqueue-retry-millis: ${CREST_EXPORT_TASK_ENQUEUE_RETRY_MILLIS:60000}
+        pending-idle-millis: ${CREST_EXPORT_TASK_PENDING_IDLE_MILLIS:60000}
+      sync:
+        stream: ${CREST_SYNC_TASK_STREAM:${CREST_REDIS_KEY_PREFIX:crest:core}:stream:dataset-sync-task}
+        consumer-group: ${CREST_SYNC_TASK_CONSUMER_GROUP:${CREST_REDIS_KEY_PREFIX:crest:core}:group:dataset-sync-workers}
+        batch-size: ${CREST_SYNC_TASK_BATCH_SIZE:2}
+        block-millis: ${CREST_SYNC_TASK_BLOCK_MILLIS:1000}
+        poll-delay-millis: ${CREST_SYNC_TASK_POLL_DELAY_MILLIS:1000}
+        recovery-interval-millis: ${CREST_SYNC_TASK_RECOVERY_INTERVAL_MILLIS:60000}
+        recovery-batch-size: ${CREST_SYNC_TASK_RECOVERY_BATCH_SIZE:100}
+        stale-millis: ${CREST_SYNC_TASK_STALE_MILLIS:1800000}
+        enqueue-retry-millis: ${CREST_SYNC_TASK_ENQUEUE_RETRY_MILLIS:60000}
+        pending-idle-millis: ${CREST_SYNC_TASK_PENDING_IDLE_MILLIS:60000}
+      datasource-sync:
+        stream: ${CREST_DATASOURCE_SYNC_TASK_STREAM:${CREST_REDIS_KEY_PREFIX:crest:core}:stream:datasource-sync-task}
+        consumer-group: ${CREST_DATASOURCE_SYNC_TASK_CONSUMER_GROUP:${CREST_REDIS_KEY_PREFIX:crest:core}:group:datasource-sync-workers}
+        batch-size: ${CREST_DATASOURCE_SYNC_TASK_BATCH_SIZE:2}
+        block-millis: ${CREST_DATASOURCE_SYNC_TASK_BLOCK_MILLIS:1000}
+        poll-delay-millis: ${CREST_DATASOURCE_SYNC_TASK_POLL_DELAY_MILLIS:1000}
+        recovery-interval-millis: ${CREST_DATASOURCE_SYNC_TASK_RECOVERY_INTERVAL_MILLIS:60000}
+        recovery-batch-size: ${CREST_DATASOURCE_SYNC_TASK_RECOVERY_BATCH_SIZE:100}
+        stale-millis: ${CREST_DATASOURCE_SYNC_TASK_STALE_MILLIS:1800000}
+        enqueue-retry-millis: ${CREST_DATASOURCE_SYNC_TASK_ENQUEUE_RETRY_MILLIS:60000}
+        pending-idle-millis: ${CREST_DATASOURCE_SYNC_TASK_PENDING_IDLE_MILLIS:60000}
+      scheduled:
+        stream: ${CREST_SCHEDULED_TASK_STREAM:${CREST_REDIS_KEY_PREFIX:crest:core}:stream:scheduled-task}
+        consumer-group: ${CREST_SCHEDULED_TASK_CONSUMER_GROUP:${CREST_REDIS_KEY_PREFIX:crest:core}:group:scheduled-workers}
+        batch-size: ${CREST_SCHEDULED_TASK_BATCH_SIZE:2}
+        block-millis: ${CREST_SCHEDULED_TASK_BLOCK_MILLIS:1000}
+        poll-delay-millis: ${CREST_SCHEDULED_TASK_POLL_DELAY_MILLIS:1000}
+        pending-idle-millis: ${CREST_SCHEDULED_TASK_PENDING_IDLE_MILLIS:60000}
+  metadata-db:
+    type: ${CREST_DB_TYPE:ob-oracle}
+  login_timeout: 2880
+  internal-lite:
+    enabled: ${CREST_INTERNAL_LITE_ENABLED:true}
+  demo:
+    enabled: ${CREST_LOAD_DEMO:false}
+  datasource:
+    allowed-types: ${CREST_ALLOWED_DATASOURCE_TYPES:obOracle,Excel,ExcelRemote,API}
+    pool:
+      preload:
+        enabled: ${CREST_DATASOURCE_POOL_PRELOAD_ENABLED:}
+  feature:
+    ai:
+      enabled: ${CREST_FEATURE_AI_ENABLED:false}
+    sqlbot:
+      enabled: ${CREST_FEATURE_SQLBOT_ENABLED:false}
+    template-market:
+      enabled: ${CREST_FEATURE_TEMPLATE_MARKET_ENABLED:false}
+    font-management:
+      enabled: ${CREST_FEATURE_FONT_MANAGEMENT_ENABLED:false}
+    visualization-background:
+      enabled: ${CREST_FEATURE_VISUALIZATION_BACKGROUND_ENABLED:false}
+  origin-list: http://localhost:8080,http://127.0.0.1:8080
+  path:
+    excel: ${CREST_PATH_EXCEL:/opt/crest/data/excel/}
+    exportData: ${CREST_PATH_EXPORT_DATA:/opt/crest/data/exportData/}
+    static-resource: ${CREST_PATH_STATIC_RESOURCE:/opt/crest/data/static-resource/}
+    font: ${CREST_PATH_FONT:/opt/crest/data/font/}
+    report: ${CREST_PATH_REPORT:/opt/crest/data/report/}
+    custom-drivers: ${CREST_PATH_CUSTOM_DRIVERS:/opt/crest/data/custom-drivers/}
+    ehcache: ${CREST_PATH_EHCACHE:/opt/crest/cache}
+    substitule: ${CREST_SUBSTITULE_PATH:/opt/crest/cache/substitule.json}
+  crypto:
+    mode: ${CREST_CRYPTO_MODE:standard}
+    aes-key: ${CREST_AES_KEY:}
+    aes-iv: ${CREST_AES_IV:}
+    sm4-key: ${CREST_SM4_KEY:}
+  security:
+    token-secret: ${CREST_TOKEN_SECRET:}
+  user:
+    initial-password: ${CREST_INITIAL_PASSWORD:}
+  observability:
+    api:
+      route-inventory-enabled: ${CREST_API_ROUTE_INVENTORY_ENABLED:true}
+      route-prefix: ${CREST_API_ROUTE_PREFIX:/api/v1}
+    prometheus:
+      enabled: ${CREST_PROMETHEUS_ENABLED:false}
+      endpoint: ${CREST_PROMETHEUS_ENDPOINT:/api/v1/actuator/prometheus}
+      token: ${CREST_PROMETHEUS_TOKEN:}
+      max-uri-tags: ${CREST_PROMETHEUS_MAX_URI_TAGS:200}
+    grafana:
+      enabled: ${CREST_GRAFANA_ENABLED:false}
+      public-url: ${CREST_GRAFANA_PUBLIC_URL:}
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+logging:
+  file:
+    path: ${CREST_LOG_PATH:/opt/crest/logs/crest}
+# 生产环境如需排查 SQL，再临时打开下列配置。
+#mybatis-plus:
+#  configuration:
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+# OpenAPI 文档配置。
+springdoc:
+  swagger-ui:
+    enabled: false
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    #operations-sorter: alpha
+  api-docs:
+    enabled: ${CREST_API_DOCS_ENABLED:false}
+    path: /v3/api-docs
+# Knife4j 文档界面配置。
+knife4j:
+  enable: ${CREST_KNIFE4J_ENABLED:false}
+  setting:
+    language: zh_cn
+    enable-swagger-models: false

@@ -1,0 +1,27 @@
+package io.crest.api.permissions.user.vo;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+import java.util.List;
+
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
+// 定义页面展示或接口返回的数据结构
+public class UserReciVO implements Serializable {
+
+    private Long userId;
+
+    private List<Long> roleIds;
+
+    private boolean hasRootRole;
+
+    private List<Long> commonRoleIds;
+
+    public UserReciVO(Long userId) {
+        this.userId = userId;
+    }
+}

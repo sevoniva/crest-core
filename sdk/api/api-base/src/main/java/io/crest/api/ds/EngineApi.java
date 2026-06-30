@@ -1,0 +1,37 @@
+package io.crest.api.ds;
+
+import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import io.crest.auth.CrestApiPath;
+import io.crest.extensions.datasource.dto.DatasourceDTO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.web.bind.annotation.*;
+
+import static io.crest.constant.AuthResourceEnum.DATASOURCE;
+
+@Tag(name = "引擎管理:基础")
+@ApiSupport(order = 970)
+@CrestApiPath(value = "/engine", rt = DATASOURCE)
+// 定义模块接口契约和数据传输结构
+public interface EngineApi {
+
+    @Operation(summary = "查询")
+    @GetMapping("/current")
+    DatasourceDTO getEngine();
+
+    @Operation(summary = "保存")
+    @PostMapping("/record")
+    void save(@RequestBody DatasourceDTO datasourceDTO);
+
+    @Operation(summary = "校验")
+    @PostMapping("/validate")
+    void validate(@RequestBody DatasourceDTO datasourceDTO) throws Exception;
+
+    @Operation(summary = "根据ID校验")
+    @PostMapping("/validate/{id}")
+    void validateById(@PathVariable Long id) throws Exception;
+
+    @Operation(summary = "是否支持设置主键")
+    @GetMapping("/support-set-key")
+    boolean supportSetKey() throws Exception;
+}

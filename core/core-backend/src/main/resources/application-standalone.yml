@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    driver-class-name: ${CREST_DB_DRIVER_CLASS_NAME:com.oceanbase.jdbc.Driver}
+    url: ${CREST_DB_URL:jdbc:oceanbase://${CREST_DB_HOST:127.0.0.1}:${CREST_DB_PORT:2883}}
+    username: ${CREST_DB_USERNAME:}
+    password: ${CREST_DB_PASSWORD:}
+  messages:
+    basename: i18n/lic,i18n/core,i18n/permissions,i18n/sync
+  flyway:
+    enabled: ${CREST_FLYWAY_ENABLED:false}
+    table: crest_schema_version
+    validate-on-migrate: false
+    locations: ${CREST_FLYWAY_LOCATIONS:classpath:db/migration-ob-oracle}
+    baseline-on-migrate: true
+    out-of-order: false
+
+logging:
+  level:
+    "org.springframework.context.support.PostProcessorRegistrationDelegate$BeanPostProcessorChecker": ERROR
+
+mybatis-plus:
+  mapper-locations: classpath:mybatis/*.xml
+
+crest:
+  internal-lite:
+    enabled: true
+  demo:
+    enabled: ${CREST_LOAD_DEMO:false}

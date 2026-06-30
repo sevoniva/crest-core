@@ -1,0 +1,3 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+io.crest.runtime.CrestRuntimeEnvironmentPostProcessor,\
+io.crest.metadata.MetadataDbEnvironmentPostProcessor

@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crest-service
+  labels:
+    app.kubernetes.io/name: crest-service
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: crest-service
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: crest-service
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: crest
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: crest-service
+              app.kubernetes.io/component: backend
+      securityContext:
+        fsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: crest-service
+          image: ghcr.io/sevoniva/crest-service:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8100
+          env:
+            - name: CREST_RUNTIME_ROLE
+              value: all
+            - name: CREST_WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+            - configMapRef:
+                name: crest-env
+            - secretRef:
+                name: crest-db-secret
+            - secretRef:
+                name: crest-redis-secret
+          startupProbe:
+            httpGet:
+              path: /api/v1/actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 18
+          readinessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/liveness
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 1200m
+              memory: 2Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "3"
+              memory: 5Gi
+              ephemeral-storage: 5Gi
+          volumeMounts:
+            - name: crest-data
+              mountPath: /opt/crest/data
+            - name: crest-cache
+              mountPath: /opt/crest/cache
+            - name: crest-logs
+              mountPath: /opt/crest/logs
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: crest-data
+          persistentVolumeClaim:
+            claimName: crest-data
+        - name: crest-cache
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: crest-logs
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 512Mi

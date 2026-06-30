@@ -1,0 +1,69 @@
+ARG JDK_IMAGE=eclipse-temurin:17-jdk-jammy@sha256:beabb759e6f9653c843958d1d1f5cecb881dfb85aa6081e2bef099ab1260344e
+ARG RUNTIME_IMAGE=ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54
+
+FROM ${JDK_IMAGE} AS jre-build
+
+WORKDIR /opt/apps
+
+RUN jlink \
+    --add-modules java.base,java.compiler,java.datatransfer,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.transaction.xa,java.xml,jdk.crypto.ec,jdk.management,jdk.unsupported \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /opt/java-runtime
+
+FROM ${RUNTIME_IMAGE}
+
+ARG TARGETARCH
+ARG CREST_BACKEND_COMMIT_ID=unknown
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+ENV JAVA_OPTS="-Dfile.encoding=utf-8 -Djava.awt.headless=true -Dspring.config.additional-location=/opt/apps/config/"
+ENV RUNNING_PORT=8100
+ENV CREST_HEALTHCHECK_PATH=/api/v1/actuator/health/readiness
+ENV CREST_BACKEND_COMMIT_ID="${CREST_BACKEND_COMMIT_ID}"
+
+LABEL org.opencontainers.image.revision="${CREST_BACKEND_COMMIT_ID}"
+
+WORKDIR /opt/apps
+
+RUN set -eux; \
+    apt_get() { apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 "$@"; }; \
+    groupadd -g 10001 crest; \
+    useradd -u 10001 -g crest -d /opt/apps -s /usr/sbin/nologin crest; \
+    for attempt in 1 2 3 4 5; do \
+      if apt_get update \
+        && apt_get upgrade -y \
+        && apt_get install -y --no-install-recommends ca-certificates curl fontconfig fonts-dejavu-core fonts-noto-cjk fonts-noto-color-emoji tzdata; then \
+        break; \
+      fi; \
+      status="$?"; \
+      if [ "${attempt}" = "5" ]; then \
+        exit "${status}"; \
+      fi; \
+      apt-get clean; \
+      rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/partial/*; \
+      sleep "$((attempt * 5))"; \
+    done; \
+    rm -rf /var/lib/apt/lists/* "${JAVA_HOME}" /usr/share/maven /usr/share/maven-ref /root/.m2 /usr/bin/mvn /usr/local/bin/mvn; \
+    fc-cache -f; \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime; \
+    mkdir -p /opt/crest/logs /opt/crest/cache /opt/crest/data/static-resource /opt/apps/config; \
+    chown -R 10001:10001 /opt/apps /opt/crest
+
+COPY --from=jre-build /opt/java-runtime ${JAVA_HOME}
+COPY --chown=10001:10001 drivers /opt/apps/drivers
+COPY --chown=10001:10001 staticResource /opt/apps/staticResource
+COPY --chown=10001:10001 core/core-backend/target/CoreApplication.jar /opt/apps/app.jar
+
+USER 10001:10001
+
+EXPOSE 8100
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=20 \
+  CMD env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy curl -fsS "http://127.0.0.1:${RUNNING_PORT}${CREST_HEALTHCHECK_PATH}" >/dev/null || exit 1
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /opt/apps/app.jar"]

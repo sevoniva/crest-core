@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.crest.visualization.dao.ext.mapper.ExtVisualizationOuterParamsMapper">
+
+    <resultMap id="BaseResultMapParams" type="io.crest.visualization.dao.auto.entity.VisualizationOuterParams">
+        <id column="params_id" jdbcType="VARCHAR" property="paramsId" />
+        <result column="visualization_id" jdbcType="VARCHAR" property="visualizationId" />
+        <result column="checked" jdbcType="BIT" property="checked" />
+        <result column="remark" jdbcType="VARCHAR" property="remark" />
+        <result column="copy_from" jdbcType="VARCHAR" property="copyFrom" />
+        <result column="copy_id" jdbcType="VARCHAR" property="copyId" />
+    </resultMap>
+
+    <resultMap id="BaseResultMapParamsInfo" type="io.crest.visualization.dao.auto.entity.VisualizationOuterParamsInfo">
+        <id column="params_info_id" jdbcType="VARCHAR" property="paramsInfoId" />
+        <result column="params_id" jdbcType="VARCHAR" property="paramsId" />
+        <result column="param_name" jdbcType="VARCHAR" property="paramName" />
+        <result column="checked" jdbcType="BIT" property="checked" />
+        <result column="required" jdbcType="BIT" property="required" />
+        <result column="default_value" jdbcType="VARCHAR" property="defaultValue" />
+        <result column="enabled_default" jdbcType="BIT" property="enabledDefault" />
+        <result column="copy_from" jdbcType="VARCHAR" property="copyFrom" />
+        <result column="copy_id" jdbcType="VARCHAR" property="copyId" />
+    </resultMap>
+
+  <resultMap id="BaseResultMapDTOSnapshot" type="io.crest.api.visualization.dto.VisualizationOuterParamsDTO"
+             extends="BaseResultMapParams">
+    <collection property="outerParamsInfoArray" ofType="io.crest.api.visualization.dto.VisualizationOuterParamsInfoDTO"
+                column="{visualization_id=visualization_id}"
+                select="getOuterParamsInfoSnapshot">
+    </collection>
+  </resultMap>
+
+  <resultMap id="BaseDsResultMapDTO" type="io.crest.api.dataset.vo.CoreDatasetGroupVO">
+    <collection property="datasetFields" ofType="io.crest.api.dataset.vo.CoreDatasetTableFieldVO"
+                column="{dataset_group_id=id}"
+                select="getDsFieldInfo">
+    </collection>
+    <collection property="datasetViews" ofType="io.crest.api.chart.vo.ChartBaseVO"
+                column="{dataset_group_id=id,visualizationId = visualizationId}"
+                select="getViewInfo">
+    </collection>
+  </resultMap>
+
+  <resultMap id="OuterParamsInfoMap" type="io.crest.api.visualization.dto.VisualizationOuterParamsInfoDTO" extends="BaseResultMapParamsInfo">
+    <collection property="targetViewInfoList" ofType="io.crest.visualization.dao.auto.entity.VisualizationOuterParamsTargetViewInfo">
+      <result column="target_view_id" jdbcType="VARCHAR" property="targetViewId"/>
+      <result column="target_ds_id" jdbcType="VARCHAR" property="targetDsId"/>
+      <result column="match_mode" jdbcType="VARCHAR" property="matchMode"/>
+      <result column="target_field_id" jdbcType="VARCHAR" property="targetFieldId"/>
+    </collection>
+  </resultMap>
+
+    <resultMap id="AllOuterParamsMap" type="io.crest.api.visualization.dto.VisualizationOuterParamsInfoDTO">
+        <result column="sourceInfo" jdbcType="VARCHAR" property="sourceInfo"/>
+        <result column="required" jdbcType="VARCHAR" property="required"/>
+        <result column="default_value" jdbcType="VARCHAR" property="defaultValue"/>
+        <result column="enabled_default" jdbcType="VARCHAR" property="enabledDefault"/>
+        <collection property="targetInfoList" ofType="String">
+            <result column="targetInfo" jdbcType="VARCHAR"/>
+        </collection>
+    </resultMap>
+
+  <select id="getOuterParamsInfoSnapshot" resultMap="OuterParamsInfoMap">
+        SELECT
+            pop.visualization_id,
+            popi.params_info_id,
+            popi.param_name,
+            popi.enabled_default,
+            popi.required,
+            popi.default_value,
+            COALESCE( popi.checked, 0 ) AS checked,
+            poptvi.target_view_id,
+            poptvi.target_ds_id,
+            poptvi.match_mode,
+            poptvi.target_field_id
+        FROM
+            core_visualization_parameter_snapshot pop
+            LEFT JOIN core_visualization_parameter_item_snapshot popi ON pop.params_id = popi.params_id
+            LEFT JOIN core_visualization_parameter_target_snapshot poptvi ON popi.params_info_id = poptvi.params_info_id
+        WHERE
+            pop.visualization_id = #{visualization_id}
+        ORDER BY
+            COALESCE( popi.checked, 0 ) DESC
+    </select>
+
+  <select id="queryWithVisualizationIdSnapshot"  resultMap="BaseResultMapDTOSnapshot">
+      SELECT
+          #{visualizationId} as visualization_id,
+          COALESCE( vop.checked, 0 ) AS checked
+      FROM
+          core_visualization_snapshot dvi
+              LEFT JOIN core_visualization_parameter_snapshot vop ON dvi.id = vop.visualization_id
+      WHERE
+          dvi.id = #{visualizationId}
+  </select>
+
+    <delete id="deleteOuterParamsTargetWithVisualizationId" >
+        DELETE FROM
+            core_visualization_parameter_target poptvi
+        WHERE
+            poptvi.params_info_id IN (
+               SELECT params_info_id FROM
+                (
+                    SELECT poptvi.params_info_id FROM
+                        core_visualization_parameter_target poptvi
+                            INNER JOIN core_visualization_parameter_item popi ON poptvi.params_info_id = popi.params_info_id
+                            INNER JOIN core_visualization_parameter pop ON popi.params_id = pop.params_id
+                    WHERE pop.visualization_id = #{visualizationId}
+                ) tmp
+            )
+    </delete>
+
+    <delete id="deleteOuterParamsInfoWithVisualizationId" >
+        DELETE FROM
+            core_visualization_parameter_item popi
+        WHERE
+            popi.params_id IN (
+                SELECT params_id FROM
+                    (
+                        SELECT popi.params_id FROM
+                            core_visualization_parameter_item popi
+                                INNER JOIN core_visualization_parameter pop ON popi.params_id = pop.params_id
+                        WHERE pop.visualization_id = #{visualizationId}
+                    ) tmp
+            )
+    </delete>
+
+    <delete id="deleteOuterParamsWithVisualizationId" >
+        DELETE FROM
+            core_visualization_parameter
+        WHERE
+            visualization_id = #{visualizationId}
+    </delete>
+
+
+    <delete id="deleteOuterParamsTargetWithVisualizationIdSnapshot" >
+        DELETE FROM
+            core_visualization_parameter_target_snapshot poptvi
+        WHERE
+            poptvi.params_info_id IN (
+               SELECT params_info_id FROM
+                (
+                    SELECT poptvi.params_info_id FROM
+                        core_visualization_parameter_target_snapshot poptvi
+                            INNER JOIN core_visualization_parameter_item_snapshot popi ON poptvi.params_info_id = popi.params_info_id
+                            INNER JOIN core_visualization_parameter_snapshot pop ON popi.params_id = pop.params_id
+                    WHERE pop.visualization_id = #{visualizationId}
+                ) tmp
+            )
+    </delete>
+
+    <delete id="deleteOuterParamsInfoWithVisualizationIdSnapshot" >
+        DELETE FROM
+            core_visualization_parameter_item_snapshot popi
+        WHERE
+            popi.params_id IN (
+                SELECT params_id FROM
+                    (
+                        SELECT popi.params_id FROM
+                            core_visualization_parameter_item_snapshot popi
+                                INNER JOIN core_visualization_parameter_snapshot pop ON popi.params_id = pop.params_id
+                        WHERE pop.visualization_id = #{visualizationId}
+                    ) tmp
+            )
+    </delete>
+
+    <delete id="deleteOuterParamsWithVisualizationIdSnapshot" >
+        DELETE FROM
+            core_visualization_parameter_snapshot
+        WHERE
+            visualization_id = #{visualizationId}
+    </delete>
+
+    <select id="getVisualizationOuterParamsInfo" resultMap="AllOuterParamsMap">
+        SELECT DISTINCT
+            popi.param_name AS sourceInfo,
+            popi.required AS required,
+            popi.default_value AS default_value,
+            popi.enabled_default AS enabled_default,
+            <choose>
+                <when test="_databaseId == 'ob-oracle'">
+                    TO_CHAR(poptvi.target_view_id) || '#' || TO_CHAR(poptvi.target_field_id) || '#' || poptvi.match_mode AS targetInfo
+                </when>
+                <otherwise>
+                    CONCAT( poptvi.target_view_id, '#', poptvi.target_field_id, '#', poptvi.match_mode ) AS targetInfo
+                </otherwise>
+            </choose>
+        FROM
+            core_visualization_parameter pop
+            LEFT JOIN core_visualization_parameter_item popi ON pop.params_id = popi.params_id
+            LEFT JOIN core_visualization_parameter_target poptvi ON popi.params_info_id = poptvi.params_info_id
+        WHERE
+            pop.visualization_id = #{visualizationId} and pop.checked=1
+            and popi.checked=1
+    </select>
+
+        <select id="getVisualizationOuterParamsInfoBase" resultType="io.crest.visualization.dao.auto.entity.SnapshotVisualizationOuterParamsInfo">
+           SELECT
+               vopi.param_name,
+               vopi.params_info_id
+           FROM
+               core_visualization_parameter_item_snapshot vopi
+               INNER JOIN core_visualization_parameter_snapshot vop ON vop.params_id = vopi.params_id
+           WHERE
+               vop.visualization_id = #{visualizationId}
+        </select>
+
+      <select id="queryDsWithVisualizationId"  resultMap="BaseDsResultMapDTO">
+          SELECT DISTINCT
+              cdg.`id`,
+              cdg.`name`,
+              cdg.`pid`,
+              cdg.`level`,
+              cdg.`node_type`,
+              cdg.`type`,
+              cdg.`mode`,
+              cdg.`info`,
+              cdg.`create_by`,
+              cdg.`create_time`,
+              cdg.`scheduler_fire_instance_id`,
+              cdg.`sync_status`,
+              cdg.`update_by`,
+              cdg.`last_update_time`,
+              #{visualizationId} as visualizationId
+          FROM
+              core_dataset cdg
+              INNER JOIN core_chart_view_snapshot ccv ON cdg.id = ccv.table_id
+              AND ccv.type != 'VQuery'
+              INNER JOIN core_visualization_snapshot dvi ON ccv.scene_id = dvi.id
+          WHERE
+              ccv.scene_id = #{visualizationId}
+              AND dvi.id = #{visualizationId}
+              <choose>
+                  <when test="_databaseId == 'ob-oracle'">
+                      AND INSTR(dvi.component_data, TO_CHAR(ccv.id)) > 0
+                  </when>
+                  <otherwise>
+                      AND LOCATE(
+                      ccv.id,
+                      dvi.component_data)
+                  </otherwise>
+              </choose>
+      </select>
+
+       <select id="getDsFieldInfo"  resultType="io.crest.api.dataset.vo.CoreDatasetTableFieldVO">
+          select cdtf.*,cdtf.id as attachId from core_dataset_field cdtf where cdtf.dataset_group_id = #{dataset_group_id} order by cdtf.field_type, cdtf.origin_name
+      </select>
+
+      <select id="getViewInfo"  resultType="io.crest.api.chart.vo.ChartBaseVO">
+           SELECT DISTINCT
+              ccv.id as chartId,ccv.title as chartName,ccv.type as chartType
+          FROM
+              core_chart_view_snapshot ccv
+              INNER JOIN core_visualization_snapshot dvi ON ccv.scene_id = dvi.id
+          WHERE
+              ccv.table_id = #{dataset_group_id}
+              AND ccv.type != 'VQuery'
+              AND dvi.id = #{visualizationId}
+              <choose>
+                  <when test="_databaseId == 'ob-oracle'">
+                      AND INSTR(dvi.component_data, TO_CHAR(ccv.id)) > 0
+                  </when>
+                  <otherwise>
+                      AND LOCATE(ccv.id, dvi.component_data)
+                  </otherwise>
+              </choose>
+      </select>
+
+</mapper>

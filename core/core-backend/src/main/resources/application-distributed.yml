@@ -1,0 +1,29 @@
+
+spring:
+
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+        server-addr: 127.0.0.1:8848
+  datasource:
+    driver-class-name: ${CREST_DB_DRIVER_CLASS_NAME:com.oceanbase.jdbc.Driver}
+    url: ${CREST_DB_URL:jdbc:oceanbase://${CREST_DB_HOST:127.0.0.1}:${CREST_DB_PORT:2883}}
+    username: ${CREST_DB_USERNAME:}
+    password: ${CREST_DB_PASSWORD:}
+  flyway:
+    enabled: false
+  messages:
+    basename: i18n/core
+
+
+dynamic:
+  datasource:
+    official-ds:
+      driver-class-name: com.oceanbase.jdbc.Driver
+      url: ${CREST_OFFICIAL_DB_URL:${CREST_DB_URL:jdbc:oceanbase://${CREST_DB_HOST:127.0.0.1}:${CREST_DB_PORT:2883}}}
+      username: ${CREST_OFFICIAL_DB_USERNAME:${CREST_DB_USERNAME:}}
+      password: ${CREST_OFFICIAL_DB_PASSWORD:${CREST_DB_PASSWORD:}}
+
+mybatis-plus:
+  mapper-locations: classpath:mybatis/*.xml

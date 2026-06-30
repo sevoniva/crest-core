@@ -1,0 +1,348 @@
+<template>
+  <div class="info-template-container">
+    <div v-if="!props.hideHead" class="info-template-header">
+      <div class="info-template-title">
+        <span>{{ curTitle }}</span>
+      </div>
+      <div>
+        <el-button v-if="testConnectText" secondary @click="check">{{ testConnectText }}</el-button>
+        <el-button v-if="showValidate" secondary @click="check">{{
+          t('datasource.validate')
+        }}</el-button>
+        <el-button type="primary" @click="edit">{{ t('commons.edit') }}</el-button>
+      </div>
+    </div>
+    <div class="info-template-content">
+      <div
+        class="info-content-item"
+        :class="{ 'is-wide': isLongValue(item.pval) }"
+        v-for="item in settingList"
+        :key="item.pkey"
+      >
+        <div class="info-item-label">
+          <span>{{ settingLabel(item.pkey) }}</span>
+          <el-tooltip
+            v-if="tooltipItem[item.pkey]"
+            effect="dark"
+            :content="tooltipItem[item.pkey]"
+            placement="top"
+          >
+            <el-icon class="info-tips"
+              ><Icon name="dv-info"><dvInfo class="svg-icon" /></Icon
+            ></el-icon>
+          </el-tooltip>
+        </div>
+        <div class="info-item-content">
+          <div class="info-item-pwd" v-if="item.type === 'pwd'">
+            <span class="info-item-pwd-span">{{
+              pwdItem[item.pkey]['hidden'] ? '********' : item.pval
+            }}</span>
+
+            <el-tooltip
+              v-if="props.copyList.includes(item.pkey)"
+              effect="dark"
+              :content="t('common.copy')"
+              placement="top"
+            >
+              <el-button text @click="copyVal(item.pval)" class="setting-tip-btn">
+                <template #icon>
+                  <Icon name="copy"><CopyIcon class="svg-icon" /></Icon>
+                </template>
+              </el-button>
+            </el-tooltip>
+
+            <el-tooltip
+              effect="dark"
+              :content="
+                pwdItem[item.pkey]['hidden'] ? t('system.click_to_show') : t('system.click_to_hide')
+              "
+              placement="top"
+            >
+              <el-button text @click="switchPwd(item.pkey)" class="setting-tip-btn">
+                <template #icon>
+                  <Icon
+                    ><component
+                      class="svg-icon"
+                      :is="pwdItem[item.pkey]['hidden'] ? eye : eyeOpen"
+                    ></component
+                  ></Icon>
+                </template>
+              </el-button>
+            </el-tooltip>
+          </div>
+          <span v-else-if="item.pkey.includes('basic.dsIntervalTime')">
+            <span>{{ item.pval + ' ' + executeTime + t('common.every_exec') }}</span>
+          </span>
+          <template v-else>
+            <span style="word-break: break-all">{{ item.pval }}</span>
+            <el-tooltip
+              v-if="props.copyList.includes(item.pkey)"
+              effect="dark"
+              :content="t('common.copy')"
+              placement="top"
+            >
+              <el-button text @click="copyVal(item.pval)" class="setting-tip-btn">
+                <template #icon>
+                  <Icon name="copy"><CopyIcon class="svg-icon" /></Icon>
+                </template>
+              </el-button>
+            </el-tooltip>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script lang="ts" setup>
+import eye from '@/assets/svg/eye.svg'
+import eyeOpen from '@/assets/svg/eye-open.svg'
+import dvInfo from '@/assets/svg/dv-info.svg'
+import CopyIcon from '@/assets/svg/copy.svg'
+import { ref, PropType, computed } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
+import { SettingRecord, ToolTipRecord } from './SettingTemplate'
+import useClipboard from 'vue-clipboard3'
+import { ElMessage } from 'element-plus-secondary'
+const { toClipboard } = useClipboard()
+const { t } = useI18n()
+// 接收设置项、标题、操作按钮和复制配置
+const props = defineProps({
+  settingKey: {
+    type: String,
+    default: 'basic'
+  },
+  labelTooltips: {
+    type: Array as PropType<ToolTipRecord[]>,
+    default: () => []
+  },
+  settingData: {
+    type: Array as PropType<SettingRecord[]>,
+    default: () => []
+  },
+  settingTitle: {
+    type: String,
+    default: ''
+  },
+  hideHead: {
+    type: Boolean,
+    default: false
+  },
+  showValidate: {
+    type: Boolean,
+    default: false
+  },
+  testConnectText: {
+    type: String,
+    default: null
+  },
+  copyList: {
+    type: Array as PropType<string[]>,
+    default: () => []
+  }
+})
+// 当前执行周期单位文案
+const executeTime = ref(t('system.and_0_seconds'))
+// 当前信息卡片标题
+const curTitle = computed(() => {
+  return props.settingTitle || t('system.basic_settings')
+})
+const labelFallback: Record<string, string> = {
+  'setting_basic.siteTitle': '系统名称'
+}
+// 获取设置项展示标签
+const settingLabel = (key: string) => {
+  const label = t(key)
+  return label === key ? labelFallback[key] || key : label
+}
+// 复制设置项值
+const copyVal = async val => {
+  try {
+    await toClipboard(val)
+    ElMessage.success(t('common.copy_success'))
+  } catch (e) {
+    ElMessage.warning(t('common.copy_unsupported'), e)
+  }
+}
+// 加载可展示的设置项列表
+const loadList = () => {
+  settingList.value = []
+  if (props.settingData?.length) {
+    props.settingData.forEach(item => {
+      if (item.pkey.includes('basic.dsExecuteTime')) {
+        executeTime.value = getExecuteTime(item.pval)
+      } else {
+        settingList.value.push(item)
+      }
+    })
+  }
+}
+
+// 将执行周期单位值转换为文案
+const getExecuteTime = val => {
+  const options = [
+    { value: 'minute', label: t('system.time_0_seconds') },
+    { value: 'hour', label: t('system.hour_execution_default') }
+  ]
+  return options.find(item => item.value === val)?.label ?? options[0].label
+}
+
+// 判断设置项值是否需要宽布局
+const isLongValue = val => `${val ?? ''}`.length > 56
+
+// 当前展示的设置项列表
+const settingList = ref([] as SettingRecord[])
+
+// 初始化设置项展示数据
+const init = () => {
+  if (props.settingData?.length) {
+    loadList()
+  }
+}
+// 密码字段显隐状态
+const pwdItem = ref({})
+
+// 初始化密码字段隐藏状态
+const formatPwd = () => {
+  settingList.value.forEach(setting => {
+    if (setting.type === 'pwd') {
+      pwdItem.value[setting.pkey] = { hidden: true }
+    }
+  })
+}
+
+// 设置项提示文案映射
+const tooltipItem = ref({})
+// 初始化设置项提示文案
+const formatLabel = () => {
+  if (props.labelTooltips?.length) {
+    props.labelTooltips.forEach(tooltip => {
+      tooltipItem.value[tooltip.key] = tooltip.val
+    })
+  }
+}
+
+// 切换密码字段显隐状态
+const switchPwd = (pkey: string) => {
+  pwdItem.value[pkey]['hidden'] = !pwdItem.value[pkey]['hidden']
+}
+
+// 定义编辑和校验事件
+const emits = defineEmits(['edit', 'check'])
+// 触发编辑事件
+const edit = () => {
+  emits('edit')
+}
+
+// 触发校验事件
+const check = () => {
+  emits('check')
+}
+defineExpose({
+  init
+})
+init()
+formatPwd()
+formatLabel()
+</script>
+
+<style lang="less" scoped>
+.setting-tip-btn {
+  height: 24px !important;
+  width: 24px !important;
+  margin-left: 4px !important;
+  .ed-icon {
+    font-size: 16px;
+  }
+}
+.info-template-container {
+  padding: 22px 24px 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  .info-template-header {
+    display: flex;
+    margin-top: -4px;
+    align-items: center;
+    justify-content: space-between;
+    .info-template-title {
+      height: 24px;
+      line-height: 23px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+  }
+  .info-template-content {
+    width: 100%;
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 56px;
+    row-gap: 22px;
+    .info-content-item {
+      width: auto;
+      min-width: 0;
+      margin-bottom: 0;
+      min-height: 46px;
+      &.is-wide {
+        grid-column: 1 / -1;
+      }
+      .info-item-label {
+        height: 22px;
+        line-height: 22px;
+        display: flex;
+        align-items: center;
+        span {
+          font-size: 14px;
+          color: #64748b;
+          font-weight: 500;
+        }
+        i {
+          margin-left: 2px;
+        }
+      }
+      .info-item-content {
+        line-height: 22px;
+        min-width: 0;
+        span {
+          font-size: 14px;
+          color: #0f172a;
+          font-weight: 400;
+        }
+
+        .info-item-pwd {
+          height: 22px;
+          line-height: 22px;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          i {
+            margin-left: 2px;
+          }
+          .info-item-pwd-span {
+            max-width: calc(100% - 84px);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+        }
+      }
+      &.is-wide .info-item-content > span {
+        display: block;
+        margin-top: 2px;
+        padding: 10px 12px;
+        max-width: 100%;
+        color: #334155;
+        line-height: 22px;
+        word-break: break-all;
+        white-space: normal;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-family: var(--crest-font-mono, 'JetBrains Mono', monospace);
+      }
+    }
+  }
+}
+</style>

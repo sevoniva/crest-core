@@ -1,0 +1,386 @@
+<script setup lang="ts">
+import icon_collection_outlined from '@/assets/svg/icon_collection_outlined.svg'
+import visualStar from '@/assets/svg/visual-star.svg'
+import dvInfoSvg from '@/assets/svg/dv-info.svg'
+import dvHeadMore from '@/assets/svg/dv-head-more.svg'
+import icon_pc_fullscreen from '@/assets/svg/icon_pc_fullscreen.svg'
+import icon_pc_outlined from '@/assets/svg/icon_pc_outlined.svg'
+import icon_download_outlined from '@/assets/svg/icon_download_outlined.svg'
+import icon_replace_outlined from '@/assets/svg/icon_replace_outlined.svg'
+import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { storeToRefs } from 'pinia'
+import { useI18n } from '@/hooks/web/useI18n'
+import { useAppStoreWithOut } from '@/store/modules/app'
+import DvDetailInfo from '@/views/common/DvDetailInfo.vue'
+import { useEmbedded } from '@/store/modules/embedded'
+import { storeApi, storeStatusApi } from '@/api/visualization/dataVisualization'
+import { ref, watch, computed } from 'vue'
+import ShareVisualHead from '@/views/share/share/ShareVisualHead.vue'
+import { useEmitt } from '@/hooks/web/useEmitt'
+import { useShareStoreWithOut } from '@/store/modules/share'
+import { exportPermission } from '@/utils/utils'
+import { useCache } from '@/hooks/web/useCache'
+import DatasetCacheStatusBar from '@/components/visualization/DatasetCacheStatusBar.vue'
+
+const shareStore = useShareStoreWithOut()
+const { wsCache } = useCache('localStorage')
+const dvMainStore = dvMainStoreWithOut()
+const appStore = useAppStoreWithOut()
+const { dvInfo } = storeToRefs(dvMainStore)
+// 定义预览页头部操作事件
+const emit = defineEmits(['reload', 'download', 'downloadAsAppTemplate'])
+defineProps({
+  cacheReloadKey: {
+    type: [String, Number],
+    default: ''
+  }
+})
+const { t } = useI18n()
+const embeddedStore = useEmbedded()
+const openType = wsCache.get('open-backend') === '1' ? '_self' : '_blank'
+// 收藏状态标记
+const favorited = ref(false)
+// 打开当前画布预览页
+const preview = () => {
+  const baseUrl = isCrestBi.value ? embeddedStore.baseUrl : ''
+  const url =
+    baseUrl +
+    '#/preview?dvId=' +
+    dvInfo.value.id +
+    '&dvType=' +
+    dvInfo.value['type'] +
+    '&ignoreParams=true'
+  const newWindow = window.open(url, '_blank')
+  initOpenHandler(newWindow)
+}
+// 判断是否处于嵌入式应用模式
+const isCrestBi = computed(() => appStore.getIsCrestBi)
+// 判断当前页面是否在 iframe 中运行
+const isIframe = computed(() => appStore.getIsIframe)
+// 判断分享能力是否被禁用
+const shareDisable = computed(() => shareStore.getShareDisable)
+// 计算当前画布的导出权限
+const exportPermissions = computed(() =>
+  exportPermission(dvInfo.value['weight'], dvInfo.value['ext'])
+)
+// 触发当前画布重新加载
+const reload = () => {
+  emit('reload', dvInfo.value.id)
+}
+
+// 触发当前画布下载
+const download = type => {
+  emit('download', type)
+}
+// 触发当前画布另存为应用模板
+const downloadAsAppTemplate = downloadType => {
+  emit('downloadAsAppTemplate', downloadType)
+}
+
+// 打开当前画布编辑页
+const dvEdit = () => {
+  if (isCrestBi.value || isIframe.value) {
+    embeddedStore.clearState()
+    if (dvInfo.value.type === 'dataV') {
+      embeddedStore.setDvId(dvInfo.value.id)
+    } else {
+      embeddedStore.setResourceId(dvInfo.value.id)
+    }
+    useEmitt().emitter.emit(
+      'changeCurrentComponent',
+      dvInfo.value.type === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
+    )
+    return
+  }
+  const baseUrl = dvInfo.value.type === 'dataV' ? '#/dvCanvas?dvId=' : '#/dashboard?resourceId='
+  const newWindow = window.open(baseUrl + dvInfo.value.id, openType)
+  initOpenHandler(newWindow)
+}
+
+// 切换当前画布收藏状态
+const executeStore = () => {
+  const param = {
+    id: dvInfo.value.id,
+    type: dvInfo.value.type === 'dashboard' ? 'panel' : 'screen'
+  }
+  storeApi(param).then(() => {
+    storeQuery()
+  })
+}
+// 查询当前画布收藏状态
+const storeQuery = () => {
+  if (!dvInfo?.value?.id) return
+  storeStatusApi(dvInfo.value.id).then(res => {
+    favorited.value = res.data
+  })
+}
+storeQuery()
+// 监听画布切换并刷新收藏状态
+watch(
+  () => dvInfo.value.id,
+  () => {
+    storeQuery()
+  }
+)
+
+// 嵌入式新窗口处理器引用
+const openHandler = ref(null)
+// 将新窗口句柄同步给嵌入式容器
+const initOpenHandler = newWindow => {
+  if (openHandler?.value) {
+    const pm = {
+      methodName: 'initOpenHandler',
+      args: newWindow
+    }
+    openHandler.value?.invokeMethod(pm)
+  }
+}
+</script>
+
+<template>
+  <div class="preview-head flex-align-center">
+    <div :title="dvInfo.name" class="canvas-name ellipsis">{{ dvInfo.name }}</div>
+    <div v-show="dvInfo.status === 2" class="canvas-have-update">
+      {{ t('visualization.publish_update_tips') }}
+    </div>
+    <el-tooltip
+      effect="dark"
+      :content="favorited ? t('visualization.cancel_store') : t('visualization.store')"
+      placement="top"
+    >
+      <el-icon
+        v-if="dvInfo.status !== 0"
+        class="custom-icon hover-icon"
+        @click="executeStore"
+        :style="{ color: favorited ? '#FFC60A' : '#646A73' }"
+      >
+        <icon
+          ><component
+            class="svg-icon"
+            :is="favorited ? visualStar : icon_collection_outlined"
+          ></component
+        ></icon>
+      </el-icon>
+    </el-tooltip>
+    <el-divider style="margin: 0 16px 0 7px" direction="vertical" />
+    <div class="create-area flex-align-center">
+      <span style="line-height: 22px"
+        >{{ t('visualization.creator') }}:{{ dvInfo.creatorName }}</span
+      >
+      <el-popover show-arrow :offset="8" placement="bottom" width="400" trigger="hover">
+        <template #reference>
+          <el-icon class="info-tips"
+            ><Icon name="dv-info"><dvInfoSvg class="svg-icon" /></Icon
+          ></el-icon>
+        </template>
+        <dv-detail-info></dv-detail-info>
+      </el-popover>
+    </div>
+    <div class="canvas-opt-button">
+      <dataset-cache-status-bar
+        v-if="dvInfo.id"
+        :visualization-id="dvInfo.id"
+        :reload-key="cacheReloadKey"
+      />
+      <el-button
+        v-if="!isIframe"
+        :disabled="dvInfo.status === 0"
+        secondary
+        @click="() => useEmitt().emitter.emit('canvasFullscreen')"
+      >
+        <template #icon>
+          <icon name="icon_pc_fullscreen"><icon_pc_fullscreen class="svg-icon" /></icon>
+        </template>
+        {{ t('visualization.fullscreen') }}</el-button
+      >
+      <el-button secondary @click="preview()" :disabled="dvInfo.status === 0">
+        <template #icon>
+          <icon name="icon_pc_outlined"><icon_pc_outlined class="svg-icon" /></icon>
+        </template>
+        {{ t('template_manage.preview') }}
+      </el-button>
+      <ShareVisualHead
+        v-if="!shareDisable"
+        :disabled="dvInfo.status === 0"
+        :resource-id="dvInfo.id"
+        :weight="dvInfo.weight"
+        :resource-type="dvInfo.type"
+      />
+      <el-button class="custom-button" v-if="dvInfo.weight > 6" type="primary" @click="dvEdit()">
+        <template #icon>
+          <icon name="icon_edit_outlined"><icon_edit_outlined class="svg-icon" /></icon>
+        </template>
+        {{ t('visualization.edit') }}</el-button
+      >
+      <el-dropdown :disabled="dvInfo.status === 0" popper-class="pad12" trigger="click">
+        <el-icon class="head-more-icon">
+          <Icon name="dv-head-more"><dvHeadMore class="svg-icon" /></Icon>
+        </el-icon>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item @click="reload()"
+              ><el-icon color="#646A73" size="16"><icon_replace_outlined /></el-icon
+              >{{ t('visualization.refresh_data') }}
+            </el-dropdown-item>
+            <el-dropdown
+              style="width: 100%; overflow: hidden"
+              trigger="hover"
+              popper-class="pad12"
+              placement="left-start"
+              v-if="exportPermissions[0]"
+            >
+              <div class="ed-dropdown-menu__item flex-align-center icon">
+                <el-icon color="#646A73" size="16"><icon_download_outlined /></el-icon>
+                {{ t('visualization.export_as') }}
+                <el-icon color="#646A73" size="16" class="arrow-right_icon"><ArrowRight /></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="download('pdf')">PDF</el-dropdown-item>
+                  <el-dropdown-item @click="downloadAsAppTemplate('template')">{{
+                    t('visualization.style_template')
+                  }}</el-dropdown-item>
+                  <el-dropdown-item @click="downloadAsAppTemplate('app')">{{
+                    t('visualization.apply_template')
+                  }}</el-dropdown-item>
+                  <el-dropdown-item @click="download('img')">{{
+                    t('chart.image')
+                  }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+  </div>
+</template>
+
+<style lang="less">
+.pad12 {
+  .ed-dropdown-menu__item {
+    padding: 5px 36px 5px 12px !important;
+
+    .ed-icon {
+      margin-right: 8px;
+    }
+    .arrow-right_icon {
+      position: absolute;
+      right: 12px;
+      margin-right: 0;
+    }
+
+    &:has(.arrow-right_icon) {
+      width: 100%;
+    }
+  }
+}
+.preview-head {
+  width: 100%;
+  min-width: 300px;
+  height: 58px;
+  padding: 12px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  font-family: var(--crest-custom_font, var(--crest-font-sans));
+  .canvas-name {
+    max-width: 200px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .canvas-have-update {
+    background-color: #ecfdf5;
+    color: #059669;
+    border: 1px solid #bbf7d0;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 20px;
+    vertical-align: middle;
+    padding: 0 8px;
+    margin-left: 8px;
+  }
+  .custom-icon {
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .create-area {
+    color: #64748b;
+    font-weight: 500;
+    font-size: 14px;
+  }
+  .canvas-opt-button {
+    display: flex;
+    justify-content: right;
+    align-items: center;
+    flex: 1;
+    gap: 8px;
+
+    .ed-button {
+      height: 34px;
+      margin-left: 0;
+      border-radius: 10px;
+      border-color: #e2e8f0;
+      background: #ffffff;
+      color: #334155;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+      &:hover,
+      &:focus {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: var(--ed-color-primary);
+      }
+
+      &.ed-button--primary {
+        border-color: var(--ed-color-primary);
+        background: var(--ed-color-primary);
+        color: #ffffff;
+
+        &:hover,
+        &:focus {
+          border-color: #2563eb;
+          background: #2563eb;
+          color: #ffffff;
+        }
+      }
+    }
+
+    .head-more-icon {
+      width: 34px;
+      height: 34px;
+      color: #334155;
+      margin-left: 0;
+      cursor: pointer;
+      font-size: 20px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      &:hover {
+        color: var(--ed-color-primary);
+        border-color: #bfdbfe;
+        background: #eff6ff;
+      }
+    }
+  }
+}
+.info-tips {
+  margin-left: 4px;
+  font-size: 16px;
+  color: #64748b;
+}
+
+.custom-button {
+  margin-left: 0;
+}
+</style>

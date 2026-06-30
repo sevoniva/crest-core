@@ -1,0 +1,17 @@
+package io.crest.api.permissions.embedded.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.io.Serializable;
+
+@Schema(description = "嵌入式密钥重置器")
+@Data
+// 定义接口请求或返回数据的传输结构
+public class EmbeddedResetRequest implements Serializable {
+
+    @Schema(description = "ID")
+    private Long id;
+    @Schema(description = "新密钥")
+    private String appSecret;
+}

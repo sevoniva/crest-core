@@ -1,0 +1,194 @@
+<script lang="ts" setup>
+import { reactive, ref, computed, watch, nextTick, onBeforeMount, useAttrs } from 'vue'
+import { ElTable, ElPagination } from 'element-plus-secondary'
+import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
+import TableBody from './TableBody.vue'
+import { propTypes } from '@/utils/propTypes'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
+// 接收表格列、分页、选择和空状态配置
+const props = defineProps({
+  columns: propTypes.arrayOf(propTypes.string),
+  isSearch: propTypes.bool.def(false),
+  showPagination: propTypes.bool.def(true),
+  multipleSelection: propTypes.array.def(() => []),
+  pagination: propTypes.object,
+  isRememberSelected: propTypes.bool.def(false),
+  selectedFlags: propTypes.string.def('id'),
+  tableData: propTypes.array,
+  emptyDesc: propTypes.string,
+  emptyImg: propTypes.string,
+  border: propTypes.bool.def(false),
+  showEmptyImg: propTypes.bool.def(true),
+  dataLoading: propTypes.bool.def(false)
+})
+
+const attrs = useAttrs()
+
+// 拆分透传属性中的表格事件和分页事件
+const handleListeners = () => {
+  Object.keys(attrs).forEach(key => {
+    if (key.startsWith('on')) {
+      if (['onSizeChange', 'onCurrentChange'].includes(key)) {
+        state.paginationEvent[key.slice(2)] = attrs[key]
+      } else {
+        state.tableEvent[key.slice(2)] = attrs[key]
+      }
+    } else {
+      state.tableAttrs[key] = attrs[key]
+    }
+  })
+}
+// 选中指定表格行
+const toggleRowSelection = row => {
+  table.value.toggleRowSelection(row, true)
+}
+// 切换全部行选择状态
+const toggleAllSelection = () => {
+  table.value.toggleAllSelection()
+}
+// 清空表格选择状态
+const clearSelection = () => {
+  table.value.clearSelection()
+}
+// 合并跨页保留的选择项
+const handlerSelected = multipleSelection => {
+  state.multipleSelectionCache = [...state.multipleSelectionCache, ...multipleSelection]
+  const flags = state.multipleSelectionCache.map(ele => ele[props.selectedFlags])
+  // 当前页的选中项索引
+  const notCurrentArr = []
+  props.tableData.forEach(ele => {
+    const resultIndex = flags.indexOf(ele[props.selectedFlags])
+    if (resultIndex !== -1) {
+      table.value.toggleRowSelection(ele, true)
+      notCurrentArr.push(resultIndex)
+    }
+  })
+  notCurrentArr.sort().reduceRight((_, next) => {
+    state.multipleSelectionCache.splice(next, 1)
+  }, 0)
+}
+
+onBeforeMount(() => {
+  handleListeners()
+})
+
+// 维护表格分页、事件和选择缓存状态
+const state = reactive({
+  paginationEvent: {},
+  paginationDefault: {
+    currentPage: 1,
+    pageSizes: [10, 20, 50, 100],
+    pageSize: 10,
+    layout: 'total, prev, pager, next, sizes, jumper',
+    total: 0
+  },
+  multipleSelectionCache: [],
+  tableEvent: {},
+  tableAttrs: {}
+})
+
+type EmptyImageType = 'input' | 'select' | 'table' | 'none' | 'noneWhite' | 'tree' | 'error'
+// 计算空状态图片类型
+const imgType = computed<EmptyImageType>(() => {
+  return props.emptyImg ? (props.emptyImg as EmptyImageType) : props.isSearch ? 'tree' : 'noneWhite'
+})
+// 表格实例
+const table = ref(null)
+
+// 合并当前页和跨页选择项
+const multipleSelectionAll = computed(() => [
+  ...state.multipleSelectionCache,
+  ...props.multipleSelection
+])
+// 监听分页配置并同步默认分页
+watch(
+  () => props.pagination,
+  () => {
+    state.paginationDefault = {
+      ...state.paginationDefault,
+      ...props.pagination
+    }
+  },
+  { deep: true, immediate: true }
+)
+
+// 监听表格数据变化并恢复跨页选择
+watch(
+  () => props.tableData,
+  () => {
+    nextTick(() => {
+      table.value?.doLayout()
+    })
+    if (!props.isRememberSelected) return
+    // 先拷贝，重新加载数据会触发选择变化并清空当前选择
+    const multipleSelection = [...props.multipleSelection]
+    nextTick(() => {
+      handlerSelected(multipleSelection)
+    })
+  },
+  { deep: true }
+)
+defineExpose({
+  toggleRowSelection,
+  clearSelection,
+  toggleAllSelection,
+  multipleSelectionAll
+})
+</script>
+
+<template>
+  <div class="flex-table" :class="!tableData.length && 'no-data'">
+    <el-table
+      ref="table"
+      class="crest-data-table"
+      :border="border"
+      v-bind="state.tableAttrs"
+      :data="tableData"
+      :style="{ width: '100%', height: '100%' }"
+      v-on="state.tableEvent"
+      v-loading="props.dataLoading"
+    >
+      <table-body :columns="columns">
+        <slot />
+      </table-body>
+      <template #empty>
+        <empty-background
+          v-if="props.showEmptyImg"
+          :description="props.emptyDesc ? props.emptyDesc : t('data_set.no_data')"
+          :img-type="imgType || 'noneWhite'"
+        />
+        <div v-else :style="{ width: '100%' }" />
+      </template>
+    </el-table>
+    <div v-if="showPagination && !!tableData.length" class="pagination-cont">
+      <el-pagination
+        v-model:current-page="state.paginationDefault.currentPage"
+        v-model:page-size="state.paginationDefault.pageSize"
+        background
+        v-bind="state.paginationDefault"
+        v-on="state.paginationEvent"
+      />
+    </div>
+  </div>
+</template>
+
+<style lang="less" scoped>
+.flex-table {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  .pagination-cont {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+
+  &.no-data {
+    :deep(.ed-table__inner-wrapper::before) {
+      display: none;
+    }
+  }
+}
+</style>

@@ -1,0 +1,288 @@
+package io.crest.datasource.manage;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import io.crest.commons.constants.OptConstants;
+import io.crest.commons.constants.TaskStatus;
+import io.crest.datasource.dao.auto.entity.CoreDatasource;
+import io.crest.datasource.dao.auto.mapper.CoreDatasourceMapper;
+import io.crest.datasource.dao.ext.mapper.CoreDatasourceExtMapper;
+import io.crest.datasource.dao.ext.mapper.DataSourceExtMapper;
+import io.crest.datasource.dao.ext.po.DataSourceNodePO;
+import io.crest.datasource.dao.ext.po.DsItem;
+import io.crest.datasource.dto.DatasourceNodeBO;
+import io.crest.exception.CrestException;
+import io.crest.extensions.datasource.api.PluginManageApi;
+import io.crest.extensions.datasource.dto.DatasourceDTO;
+import io.crest.extensions.datasource.vo.DatasourceConfiguration;
+import io.crest.extensions.datasource.vo.PluginDatasourceVO;
+import io.crest.i18n.Translator;
+import io.crest.model.BusiNodeRequest;
+import io.crest.model.BusiNodeVO;
+import io.crest.operation.manage.CoreOptRecentManage;
+import io.crest.substitute.permissions.auth.PlatformPermissionManage;
+import io.crest.utils.AuthUtils;
+import io.crest.utils.BeanUtils;
+import io.crest.utils.CommunityUtils;
+import io.crest.utils.TreeUtils;
+import jakarta.annotation.Resource;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+
+@Component
+// 管理数据源树、数据源保存编辑和数据源基础查询
+public class DataSourceManage {
+
+    @Resource
+    private DataSourceExtMapper dataSourceExtMapper;
+
+    @Resource
+    private PlatformPermissionManage platformPermissionManage;
+
+    @Resource
+    private CoreDatasourceMapper coreDatasourceMapper;
+
+    @Resource
+    private CoreOptRecentManage coreOptRecentManage;
+
+    @Resource
+    private CoreDatasourceExtMapper coreDatasourceExtMapper;
+
+    @Resource
+    private EngineManage engineManage;
+
+    @Autowired(required = false)
+    private PluginManageApi pluginManage;
+
+    // 构造数据源树根节点
+    private DatasourceNodeBO rootNode() {
+        return new DatasourceNodeBO(0L, "root", false, 7, -1L, 0, "obOracle");
+    }
+
+    // 根据数据源类型解析节点图标标识
+    private Integer getFlag(String type) {
+        Integer flag = null;
+        for (DatasourceConfiguration.DatasourceType datasourceType : DatasourceConfiguration.DatasourceType.values()) {
+            if (datasourceType.getType().equals(type)) {
+                flag = datasourceType.getFlag();
+            }
+        }
+        if (ObjectUtils.isEmpty(flag)) {
+            try {
+                if (pluginManage != null) {
+                    List<PluginDatasourceVO> pluginDatasourceList = pluginManage.queryPluginDs();
+                    List<PluginDatasourceVO> list = pluginDatasourceList.stream().filter(ele -> Strings.CS.equals(ele.getType(), type)).toList();
+                    if (ObjectUtils.isNotEmpty(list)) {
+                        PluginDatasourceVO first = list.get(0);
+                        flag = first.getFlag();
+                    }
+                }
+            } catch (Exception ignored) {
+                flag = 27;
+            }
+        }
+        if (ObjectUtils.isEmpty(flag)) {
+            flag = 27;
+        }
+        return flag;
+    }
+
+    // 将数据库节点转换为业务树节点
+    private DatasourceNodeBO convert(DataSourceNodePO po) {
+        Integer flag = getFlag(po.getType());
+        int extraFlag = Strings.CI.equals("error", po.getStatus()) ? Math.negateExact(flag) : flag;
+        return new DatasourceNodeBO(po.getId(), po.getName(), !Strings.CS.equals(po.getType(), "folder"), 9, po.getPid(), extraFlag, po.getType());
+    }
+    // 查询当前用户可见的数据源树
+    public List<BusiNodeVO> tree(BusiNodeRequest request) {
+
+        QueryWrapper<DataSourceNodePO> queryWrapper = new QueryWrapper<>();
+        if (ObjectUtils.isNotEmpty(request.getLeaf()) && !request.getLeaf()) {
+            queryWrapper.eq("type", "folder");
+        }
+        String info = CommunityUtils.getInfo();
+        if (StringUtils.isNotBlank(info)) {
+            queryWrapper.notExists(String.format(info, "core_datasource.id"));
+        }
+        String scopeSql = platformPermissionManage.resourceScopeSql("datasource", "core_datasource.id", "core_datasource.create_by", null);
+        if (StringUtils.isNotBlank(scopeSql)) {
+            queryWrapper.apply(scopeSql);
+        }
+        queryWrapper.orderByDesc("create_time");
+        List<DatasourceNodeBO> nodes = new ArrayList<>();
+        List<DataSourceNodePO> pos = dataSourceExtMapper.selectList(queryWrapper);
+        if (ObjectUtils.isEmpty(request.getLeaf()) || !request.getLeaf()) nodes.add(rootNode());
+        if (CollectionUtils.isNotEmpty(pos)) {
+            nodes.addAll(pos.stream().map(this::convert).toList());
+        }
+        return TreeUtils.mergeTree(nodes, BusiNodeVO.class, false);
+    }
+    // 保存数据源并登记权限和最近操作
+    public void innerSave(DatasourceDTO dataSourceDTO) {
+        CoreDatasource coreDatasource = new CoreDatasource();
+        coreDatasource.setTaskStatus(TaskStatus.WaitingForExecution.name());
+        BeanUtils.copyBean(coreDatasource, dataSourceDTO);
+        checkName(dataSourceDTO);
+        coreDatasourceMapper.insert(coreDatasource);
+        platformPermissionManage.upsertResource("datasource", String.valueOf(coreDatasource.getId()),
+                AuthUtils.getUser().getDefaultOid(), AuthUtils.getUser().getUserId(), coreDatasource.getName(),
+                coreDatasource.getCreateTime(), coreDatasource.getUpdateTime());
+        coreOptRecentManage.saveOpt(coreDatasource.getId(), OptConstants.OPT_RESOURCE_TYPE.DATASOURCE, OptConstants.OPT_TYPE.NEW);
+    }
+
+    // 校验同级数据源或文件夹名称
+    public void checkName(DatasourceDTO dto) {
+        if (StringUtils.isEmpty(dto.getName()) || StringUtils.isEmpty(dto.getName().trim())) {
+            CrestException.throwException(Translator.get("i18n_df_name_can_not_empty"));
+        }
+        QueryWrapper<CoreDatasource> wrapper = new QueryWrapper<>();
+        if (ObjectUtils.isNotEmpty(dto.getPid())) {
+            if (dto.getPid().equals(0L)) {
+                wrapper.eq("pid", -100L);
+            } else {
+                wrapper.eq("pid", dto.getPid());
+            }
+        }
+        if (StringUtils.isNotEmpty(dto.getName())) {
+            wrapper.eq("name", dto.getName());
+        }
+        if (ObjectUtils.isNotEmpty(dto.getId())) {
+            wrapper.ne("id", dto.getId());
+        }
+        if (ObjectUtils.isNotEmpty(dto.getNodeType())) {
+            if (dto.getNodeType().equalsIgnoreCase("folder")) {
+                wrapper.eq("type", dto.getType());
+            } else {
+                wrapper.ne("type", "folder");
+            }
+
+        }
+        List<CoreDatasource> list = coreDatasourceMapper.selectList(wrapper);
+        if (list.size() > 0) {
+            CrestException.throwException(Translator.get("i18n_ds_name_exists"));
+        }
+    }
+    // 预留租户访问令牌获取入口
+    public String getTenantAccessToken() {
+        return null;
+    }
+    // 更新数据源信息并重置任务状态
+    public void innerEdit(CoreDatasource coreDatasource) {
+        UpdateWrapper<CoreDatasource> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", coreDatasource.getId());
+        coreDatasource.setUpdateTime(System.currentTimeMillis());
+        coreDatasource.setUpdateBy(AuthUtils.getUser().getUserId());
+        coreDatasource.setTaskStatus(TaskStatus.WaitingForExecution.name());
+        coreDatasourceMapper.update(coreDatasource, updateWrapper);
+        platformPermissionManage.upsertResource("datasource", String.valueOf(coreDatasource.getId()),
+                AuthUtils.getUser().getDefaultOid(), AuthUtils.getUser().getUserId(), coreDatasource.getName(),
+                coreDatasource.getCreateTime(), coreDatasource.getUpdateTime());
+        coreOptRecentManage.saveOpt(coreDatasource.getId(), OptConstants.OPT_RESOURCE_TYPE.DATASOURCE, OptConstants.OPT_TYPE.UPDATE);
+    }
+    // 更新数据源名称并记录最近操作
+    public void innerEditName(CoreDatasource coreDatasource) {
+        UpdateWrapper<CoreDatasource> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", coreDatasource.getId());
+        coreDatasource.setTaskStatus(TaskStatus.WaitingForExecution.name());
+        coreDatasource.setUpdateTime(System.currentTimeMillis());
+        coreDatasource.setUpdateBy(AuthUtils.getUser().getUserId());
+        coreDatasourceMapper.update(coreDatasource, updateWrapper);
+        coreOptRecentManage.saveOpt(coreDatasource.getId(), OptConstants.OPT_RESOURCE_TYPE.DATASOURCE, OptConstants.OPT_TYPE.UPDATE);
+    }
+    // 更新数据源连接状态
+    public void innerEditStatus(CoreDatasource coreDatasource) {
+        UpdateWrapper<CoreDatasource> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", coreDatasource.getId());
+        updateWrapper.set("status", coreDatasource.getStatus());
+        coreDatasourceMapper.update(null, updateWrapper);
+    }
+    // 移动数据源节点到新的父级
+    public void move(DatasourceDTO dataSourceDTO) {
+        Long id = dataSourceDTO.getId();
+        CoreDatasource sourceData = null;
+        if (ObjectUtils.isEmpty(id) || ObjectUtils.isEmpty(sourceData = getCoreDatasource(id))) {
+            CrestException.throwException("resource not exist");
+        }
+        checkName(dataSourceDTO);
+
+        UpdateWrapper<CoreDatasource> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", id);
+        updateWrapper.set("update_time", System.currentTimeMillis());
+        updateWrapper.set("pid", dataSourceDTO.getPid());
+        updateWrapper.set("name", dataSourceDTO.getName());
+        updateWrapper.set("update_by", AuthUtils.getUser().getUserId());
+        coreDatasourceMapper.update(null, updateWrapper);
+
+        coreOptRecentManage.saveOpt(sourceData.getId(), OptConstants.OPT_RESOURCE_TYPE.DATASOURCE, OptConstants.OPT_TYPE.UPDATE);
+    }
+
+
+    // 批量触发合法数据源配置的更新流程
+    public void encryptDsConfig() {
+        coreDatasourceMapper.selectList(null).forEach(dataSource -> {
+            if (!validConfiguration(dataSource.getConfiguration())) {
+                return;
+            }
+            coreDatasourceMapper.updateById(dataSource);
+        });
+    }
+
+    // 判断数据源配置是否为 JSON 对象文本
+    private boolean validConfiguration(String configuration) {
+        return StringUtils.isNotBlank(configuration) && configuration.trim().startsWith("{");
+    }
+
+    // 查询数据源，特殊 ID 返回当前引擎数据源
+    public CoreDatasource getCoreDatasource(Long id) {
+        if (id == null) {
+            return null;
+        }
+        if (id == -1L) {
+            return engineManage.getEngineDatasource();
+        }
+        return coreDatasourceMapper.selectById(id);
+    }
+
+    // 自底向上查询父级数据源节点 ID 列表
+    public List<Long> getPidList(Long pid) {
+        if (ObjectUtils.isEmpty(pid) || pid.equals(0L)) {
+            return null;
+        }
+        List<Long> result = new ArrayList<>();
+        Stack<Long> stack = new Stack<>();
+        stack.push(pid);
+        while (!stack.isEmpty()) {
+            Long cid = stack.pop();
+            DsItem item = coreDatasourceExtMapper.queryItem(cid);
+            if (ObjectUtils.isNotEmpty(item)) {
+                result.add(cid);
+                Long cpid = null;
+                if (ObjectUtils.isNotEmpty(cpid = item.getPid()) && !cpid.equals(0L)) {
+                    stack.add(cpid);
+                }
+            }
+        }
+        return result;
+    }
+
+    // 查询数据源实体
+    public CoreDatasource datasource(Long id) {
+        return getCoreDatasource(id);
+    }
+
+    // 查询数据源并转换为 DTO
+    public DatasourceDTO getDs(Long id) {
+        CoreDatasource coreDatasource = getCoreDatasource(id);
+        DatasourceDTO dto = new DatasourceDTO();
+        BeanUtils.copyBean(dto, coreDatasource);
+        return dto;
+    }
+}

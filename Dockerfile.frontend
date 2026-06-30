@@ -1,0 +1,26 @@
+ARG NGINX_IMAGE=nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+
+FROM ${NGINX_IMAGE}
+
+ARG CREST_FRONTEND_COMMIT_ID=unknown
+
+LABEL org.opencontainers.image.revision="${CREST_FRONTEND_COMMIT_ID}"
+
+RUN apk upgrade --no-cache \
+    && addgroup -g 10001 crest \
+    && adduser -D -u 10001 -G crest -h /var/cache/nginx -s /sbin/nologin crest \
+    && mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp /var/cache/nginx/fastcgi_temp /var/cache/nginx/uwsgi_temp /var/cache/nginx/scgi_temp /var/run/nginx \
+    && chown -R 10001:10001 /var/cache/nginx /var/run/nginx /usr/share/nginx/html
+
+COPY deploy/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY --chown=10001:10001 core/core-frontend/dist/ /usr/share/nginx/html/
+
+USER 10001:10001
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=10 \
+  CMD env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
+
+ENTRYPOINT ["nginx", "-g", "daemon off;"]

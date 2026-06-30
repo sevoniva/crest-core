@@ -1,0 +1,20 @@
+package io.crest.api.permissions.login.vo;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+@Schema(description = "MFA二维码信息")
+@Data
+// 定义页面展示或接口返回的数据结构
+public class MfaQrVO implements Serializable {
+    @Serial
+    private static final long serialVersionUID = -3465640829593927730L;
+
+    @Schema(description = "图片")
+    private String img;
+
+    @Schema(description = "KEY")
+    private String key;
+}

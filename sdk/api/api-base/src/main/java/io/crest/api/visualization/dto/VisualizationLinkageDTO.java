@@ -1,0 +1,43 @@
+package io.crest.api.visualization.dto;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import io.crest.api.visualization.vo.VisualizationLinkageFieldVO;
+import io.crest.api.visualization.vo.VisualizationLinkageVO;
+import io.crest.extensions.datasource.dto.DatasetTableFieldDTO;
+import lombok.Data;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 组件联动配置及目标图表字段信息。
+ */
+@Data
+public class VisualizationLinkageDTO extends VisualizationLinkageVO {
+
+    /**
+     * 目标图表名称
+     */
+    private String targetViewName;
+
+    /**
+     * 目标图表类型
+     */
+    private String targetViewType;
+    /**
+     * 联动字段
+     */
+    private List<VisualizationLinkageFieldVO> linkageFields = new ArrayList<>();
+
+    /**
+     * 目标图表字段
+     */
+    private List<DatasetTableFieldDTO> targetViewFields = new ArrayList<>();
+    /**
+     * 表ID
+     */
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long tableId;
+
+}

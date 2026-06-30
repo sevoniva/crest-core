@@ -1,0 +1,14 @@
+[[IgnoredVulns]]
+id = "GHSA-q742-qvgc-gc2f"
+ignoreUntil = 2026-09-30
+reason = "False positive for npm tinymce 8.6.0 in OSV Scanner v1. The advisory metadata lists npm 8.x fixed at 8.5.1, and tinymce 8.6.0 bundles DOMPurify 3.4.5."
+
+[[IgnoredVulns]]
+id = "GHSA-v98h-vmpc-fpqv"
+ignoreUntil = 2026-09-30
+reason = "False positive for npm tinymce 8.6.0 in OSV Scanner v1. The advisory metadata lists npm 8.x fixed at 8.5.1, and tinymce 8.6.0 bundles DOMPurify 3.4.5."
+
+[[IgnoredVulns]]
+id = "GHSA-vg35-5wq7-3x7w"
+ignoreUntil = 2026-09-30
+reason = "False positive for npm tinymce 8.6.0 in OSV Scanner v1. The advisory metadata lists npm 8.x fixed at 8.5.1, and tinymce 8.6.0 bundles DOMPurify 3.4.5."

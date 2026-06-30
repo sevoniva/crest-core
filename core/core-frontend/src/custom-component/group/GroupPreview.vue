@@ -1,0 +1,116 @@
+<script setup lang="ts">
+import { PropType, ref, toRefs } from 'vue'
+import ComponentWrapper from '@/components/data-visualization/canvas/ComponentWrapper.vue'
+import { toPercent } from '@/utils/translate'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import UserViewEnlarge from '@/components/visualization/UserViewEnlarge.vue'
+const dvMainStore = dvMainStoreWithOut()
+// 衔接当前组件交互和状态同步
+const userViewEnlargeRef = ref(null)
+
+// 定义组件入参，约束外部传入配置
+const props = defineProps({
+  propValue: {
+    type: Array as PropType<Array<Record<string, any>>>,
+    default: () => []
+  },
+  element: {
+    type: Object as PropType<Record<string, any>>,
+    default() {
+      return {
+        propValue: null
+      }
+    }
+  },
+  showPosition: {
+    type: String,
+    required: false,
+    default: 'canvas'
+  },
+  dvInfo: {
+    type: Object as PropType<Record<string, any>>,
+    required: true
+  },
+  // 仪表板刷新计时器
+  searchCount: {
+    type: Number,
+    required: false,
+    default: 0
+  },
+  scale: {
+    type: Number,
+    required: false,
+    default: 1
+  },
+  canvasViewInfo: {
+    type: Object as PropType<Record<string, any>>,
+    required: true
+  },
+  // 字体
+  fontFamily: {
+    type: String,
+    required: false,
+    default: 'inherit'
+  }
+})
+
+const { propValue, dvInfo, searchCount, scale, canvasViewInfo } = toRefs(props)
+// 根据当前配置计算界面样式
+const customGroupStyle = item => {
+  return {
+    width: toPercent(item.groupStyle.width),
+    height: toPercent(item.groupStyle.height),
+    top: toPercent(item.groupStyle.top),
+    left: toPercent(item.groupStyle.left)
+  }
+}
+
+// 衔接当前组件交互和状态同步
+const userViewEnlargeOpen = (opt, item) => {
+  userViewEnlargeRef.value.dialogInit(
+    dvMainStore.canvasStyleData,
+    canvasViewInfo.value[item.id],
+    item,
+    opt,
+    { scale: scale.value }
+  )
+}
+</script>
+
+<template>
+  <div class="group">
+    <div>
+      <component-wrapper
+        v-for="(item, index) in propValue"
+        :id="'component' + item.id"
+        :view-info="canvasViewInfo[item.id]"
+        :key="index"
+        :config="item"
+        :index="index"
+        :dv-info="dvInfo"
+        :canvas-view-info="canvasViewInfo"
+        :style="customGroupStyle(item)"
+        :show-position="showPosition"
+        :search-count="searchCount"
+        :scale="scale"
+        :font-family="fontFamily"
+        @userViewEnlargeOpen="userViewEnlargeOpen($event, item)"
+      />
+    </div>
+    <user-view-enlarge ref="userViewEnlargeRef"></user-view-enlarge>
+  </div>
+</template>
+
+<style lang="less" scoped>
+.group {
+  & > div {
+    position: relative;
+    width: 100%;
+    height: 100%;
+
+    .component {
+      position: absolute;
+    }
+  }
+}
+</style>

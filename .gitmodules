@@ -1,0 +1,3 @@
+[submodule "private-tests"]
+	path = private-tests
+	url = https://github.com/sevoniva/crest-tests.git

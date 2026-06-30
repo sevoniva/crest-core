@@ -1,0 +1,75 @@
+name: Container Gates
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - 'release/**'
+  push:
+    branches:
+      - main
+      - dev
+      - 'release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CREST_DOCKER_JDK_IMAGE: ${{ vars.CREST_DOCKER_JDK_IMAGE || 'eclipse-temurin:17-jdk-jammy@sha256:beabb759e6f9653c843958d1d1f5cecb881dfb85aa6081e2bef099ab1260344e' }}
+  CREST_DOCKER_RUNTIME_IMAGE: ${{ vars.CREST_DOCKER_RUNTIME_IMAGE || 'ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54' }}
+  CREST_DOCKER_NGINX_IMAGE: ${{ vars.CREST_DOCKER_NGINX_IMAGE || 'nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de' }}
+  CREST_DOCKER_BACKEND_TAG: crest-service:container-gate
+  CREST_DOCKER_FRONTEND_TAG: crest-web:container-gate
+  CREST_TRIVY_SKIP_JAVA_ARTIFACTS: 'true'
+  CREST_TRIVY_SKIP_JAVA_DB_UPDATE: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  containers:
+    name: docker-build-check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          package_json_file: core/core-frontend/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: core/core-frontend/pnpm-lock.yaml
+
+      - name: Install Trivy
+        run: |
+          mkdir -p "${RUNNER_TEMP}/bin"
+          CREST_TRIVY_INSTALL_DIR="${RUNNER_TEMP}/bin" bash scripts/install-trivy.sh
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+
+      - name: Build container images
+        env:
+          CREST_DOCKER_COMMIT_ID: ${{ github.sha }}
+        run: bash scripts/docker-build-check.sh
+
+      - name: Run container image CVE gate
+        run: bash scripts/container-image-scan.sh
+
+      - name: Upload container scan reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: container-scan-reports
+          path: reports/container

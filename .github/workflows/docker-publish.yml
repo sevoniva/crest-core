@@ -1,0 +1,203 @@
+name: Build and Publish Docker Images
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Crest image tag to publish
+        required: false
+        default: v1.0.0
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_TAG: ${{ inputs.image_tag || github.ref_name || 'v1.0.0' }}
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/sevoniva/crest-service
+  FRONTEND_IMAGE: ghcr.io/sevoniva/crest-web
+  JDK_IMAGE: ${{ vars.CREST_DOCKER_JDK_IMAGE || 'eclipse-temurin:17-jdk-jammy@sha256:beabb759e6f9653c843958d1d1f5cecb881dfb85aa6081e2bef099ab1260344e' }}
+  RUNTIME_IMAGE: ${{ vars.CREST_DOCKER_RUNTIME_IMAGE || 'ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54' }}
+  NGINX_IMAGE: ${{ vars.CREST_DOCKER_NGINX_IMAGE || 'nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-crest:
+    name: Build and publish Crest image
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          package_json_file: core/core-frontend/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: core/core-frontend/pnpm-lock.yaml
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5.1.0
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: '1.25.x'
+
+      - name: Install security scanners and workflow linter
+        run: |
+          python3 -m pip install --user pipx
+          mkdir -p "${RUNNER_TEMP}/bin"
+          CREST_SEMGREP_INSTALL_DIR="${RUNNER_TEMP}/bin" bash scripts/install-semgrep.sh
+          CREST_TRIVY_INSTALL_DIR="${RUNNER_TEMP}/bin" bash scripts/install-trivy.sh
+          CREST_OSV_SCANNER_INSTALL_DIR="${RUNNER_TEMP}/bin" bash scripts/install-osv-scanner.sh
+          CREST_GITLEAKS_INSTALL_DIR="${RUNNER_TEMP}/bin" bash scripts/install-gitleaks.sh
+          CREST_ACTIONLINT_INSTALL_DIR="${RUNNER_TEMP}/bin" bash scripts/install-actionlint.sh
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+
+      - name: Validate immutable release image tag
+        run: |
+          expected_image_tag="v$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "${IMAGE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "IMAGE_TAG must be an immutable release tag in vX.Y.Z format, got ${IMAGE_TAG}" >&2
+            exit 1
+          fi
+          if [[ "${IMAGE_TAG}" != "${expected_image_tag}" ]]; then
+            echo "IMAGE_TAG must match VERSION (${expected_image_tag}), got ${IMAGE_TAG}" >&2
+            exit 1
+          fi
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" != "${expected_image_tag}" ]]; then
+            echo "Git tag must match VERSION (${expected_image_tag}), got ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Run quality gate
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: bash scripts/quality-check.sh
+
+      - name: Run SAST and SCA gate
+        run: bash scripts/security-scan.sh
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docker-publish-security-reports
+          path: reports/security
+
+      - name: Build frontend
+        working-directory: core/core-frontend
+        env:
+          CREST_FRONTEND_COMMIT_ID: ${{ github.sha }}
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build:base
+          pnpm run build:lite:check
+
+      - name: Build backend
+        run: |
+          mvn -pl :core-backend -am clean package -Pstandalone -DskipTests -Dmaven.test.skip=true
+          node scripts/verify-static-assets.mjs
+
+      - name: Build local images for CVE gate
+        env:
+          CREST_DOCKER_BUILD_ARTIFACTS: "false"
+          CREST_DOCKER_BACKEND_TAG: crest-service:publish-gate
+          CREST_DOCKER_FRONTEND_TAG: crest-web:publish-gate
+          CREST_DOCKER_JDK_IMAGE: ${{ env.JDK_IMAGE }}
+          CREST_DOCKER_RUNTIME_IMAGE: ${{ env.RUNTIME_IMAGE }}
+          CREST_DOCKER_NGINX_IMAGE: ${{ env.NGINX_IMAGE }}
+          CREST_DOCKER_REQUIRE_BASE_IMAGE_DIGESTS: "true"
+          CREST_DOCKER_COMMIT_ID: ${{ github.sha }}
+        run: bash scripts/docker-build-check.sh
+
+      - name: Run container image CVE gate
+        env:
+          CREST_DOCKER_BACKEND_TAG: crest-service:publish-gate
+          CREST_DOCKER_FRONTEND_TAG: crest-web:publish-gate
+        run: bash scripts/container-image-scan.sh
+
+      - name: Upload container scan reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docker-publish-container-scan-reports
+          path: reports/container
+
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Build and push Crest backend image
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: Dockerfile.backend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          sbom: true
+          provenance: mode=max
+          build-args: |
+            JDK_IMAGE=${{ env.JDK_IMAGE }}
+            RUNTIME_IMAGE=${{ env.RUNTIME_IMAGE }}
+            CREST_BACKEND_COMMIT_ID=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/sevoniva/Crest
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=Crest backend service
+            org.opencontainers.image.licenses=GPL-3.0
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.BACKEND_IMAGE }}:sha-${{ github.sha }}
+
+      - name: Build and push Crest frontend image
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: Dockerfile.frontend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          sbom: true
+          provenance: mode=max
+          build-args: |
+            NGINX_IMAGE=${{ env.NGINX_IMAGE }}
+            CREST_FRONTEND_COMMIT_ID=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/sevoniva/Crest
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=Crest frontend web
+            org.opencontainers.image.licenses=GPL-3.0
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.FRONTEND_IMAGE }}:sha-${{ github.sha }}

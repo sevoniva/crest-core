@@ -1,0 +1,51 @@
+package io.crest.api.lark.api;
+
+import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import io.crest.api.lark.dto.LarkEnableEditor;
+import io.crest.api.lark.dto.LarkSettingCreator;
+import io.crest.api.lark.dto.LarkTokenRequest;
+import io.crest.api.lark.vo.LarkGroupVO;
+import io.crest.api.lark.vo.LarkInfoVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "国际飞书设置")
+@ApiSupport(order = 899)
+// 定义模块接口契约和数据传输结构
+public interface LarksuiteApi {
+
+    @Operation(summary = "查询国际飞书信息")
+    @GetMapping("/info")
+    LarkInfoVO info();
+
+    @Operation(summary = "查询国际飞书二维码信息")
+    @GetMapping("/qrinfo")
+    LarkInfoVO qrinfo();
+
+    @Operation(summary = "保存")
+    @PostMapping
+    void save(@RequestBody LarkSettingCreator creator);
+
+    @Operation(summary = "国际飞书token", hidden = true)
+    @PostMapping("/token")
+    String larkToken(@RequestBody LarkTokenRequest request);
+
+    @Operation(summary = "切换开启状态")
+    @PostMapping("/enabled")
+    void switchEnable(@RequestBody LarkEnableEditor editor);
+
+    @Operation(summary = "验证可用性")
+    @PostMapping("/validate")
+    void validate(@RequestBody LarkSettingCreator creator);
+
+    @Operation(summary = "国际飞书绑定", hidden = true)
+    @PostMapping("/bind")
+    void bind(@RequestBody LarkTokenRequest request);
+
+    @Operation(summary = "获取群组", hidden = true)
+    @GetMapping("/groups")
+    LarkGroupVO getGroup();
+}

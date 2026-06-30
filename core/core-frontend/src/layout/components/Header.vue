@@ -1,0 +1,261 @@
+<script lang="ts" setup>
+import crestLogo from '@/assets/svg/logo.svg?url'
+import { computed, onMounted, ref } from 'vue'
+import { usePermissionStore } from '@/store/modules/permission'
+import { isExternal } from '@/utils/validate'
+import { formatRoute } from '@/router/establish'
+import HeaderMenuItem from './HeaderMenuItem.vue'
+import { useEmitt } from '@/hooks/web/useEmitt'
+import { useRouter, useRoute } from 'vue-router_2'
+import AccountOperator from '@/layout/components/AccountOperator.vue'
+import { useCache } from '@/hooks/web/useCache'
+import { useI18n } from '@/hooks/web/useI18n'
+
+// 路由跳转函数
+const { push } = useRouter()
+// 当前路由信息
+const route = useRoute()
+// 本地缓存用于读取后台打开方式
+const { wsCache } = useCache('localStorage')
+// 顶部导航文案函数
+const { t } = useI18n()
+
+// 点击 Logo 返回工作台首页
+const handleIconClick = () => {
+  if (route.path === '/workbranch/index') return
+  push('/workbranch/index')
+}
+
+// 根据当前路由计算顶部菜单激活项
+const activeIndex = computed(() => {
+  if (route.path.includes('system')) {
+    return '/system/user'
+  }
+  return route.path
+})
+
+// 权限路由仓库提供顶部菜单数据
+const permissionStore = usePermissionStore()
+// 顶部可见路由列表
+const routers: any[] = formatRoute(permissionStore.getRoutersNotHidden as AppCustomRouteRecordRaw[])
+// 等待客户端挂载后再显示账户操作区
+const ready = ref(false)
+
+// 打开数据导出中心
+const downloadClick = () => {
+  useEmitt().emitter.emit('data-export-center')
+}
+
+// 处理顶部菜单选择，外链按配置打开
+const handleSelect = (index: string) => {
+  if (isExternal(index)) {
+    const openType = wsCache.get('open-backend') === '1' ? '_self' : '_blank'
+    window.open(index, openType)
+  } else {
+    push(index)
+  }
+}
+
+onMounted(() => {
+  ready.value = true
+})
+</script>
+
+<template>
+  <el-header class="header-flex">
+    <img class="logo" :src="crestLogo" alt="Crest" @click="handleIconClick" />
+    <el-menu
+      :default-active="activeIndex"
+      mode="horizontal"
+      :ellipsis="false"
+      effect="light"
+      @select="handleSelect"
+    >
+      <HeaderMenuItem v-for="menu in routers" :key="menu.path" :menu="menu"></HeaderMenuItem>
+    </el-menu>
+    <div class="operate-setting" v-if="ready">
+      <el-tooltip effect="dark" :content="t('data_export.export_center')" placement="bottom">
+        <button class="top-action" type="button" @click="downloadClick">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </el-tooltip>
+      <span class="top-divider" />
+      <AccountOperator />
+    </div>
+  </el-header>
+</template>
+
+<style lang="less" scoped>
+.header-flex {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  height: 60px;
+  margin-bottom: 0;
+  padding: 0 28px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #edf2fb 0%, #fafbfe 100%);
+  border-bottom: 1px solid #e2e8f0;
+
+  &::before {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: '';
+    background-image: radial-gradient(circle at 1px 1px, #3b6fd0 1px, transparent 0);
+    background-size: 20px 20px;
+    opacity: 0.05;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .operate-setting {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  :deep(.ed-menu.ed-menu--horizontal) {
+    height: 100%;
+    background: transparent;
+    border-bottom: none;
+  }
+
+  :deep(.ed-menu--horizontal > .ed-menu-item),
+  :deep(.ed-menu--horizontal > .ed-sub-menu .ed-sub-menu__title) {
+    height: 60px;
+    padding: 0 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--crest-font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    color: #475569;
+    background: transparent !important;
+    border-bottom: none;
+    transition: color 0.15s ease;
+  }
+
+  :deep(.ed-menu--horizontal > .ed-menu-item:hover),
+  :deep(.ed-menu--horizontal > .ed-sub-menu:hover .ed-sub-menu__title) {
+    color: #0f172a;
+    background: transparent !important;
+  }
+
+  :deep(.ed-menu--horizontal > .ed-menu-item.is-active),
+  :deep(.ed-menu--horizontal > .ed-sub-menu.is-active .ed-sub-menu__title) {
+    position: relative;
+    font-weight: 700;
+    color: #0f172a !important;
+    background: transparent !important;
+    border-bottom: none;
+  }
+
+  :deep(.ed-menu--horizontal > .ed-menu-item.is-active::after),
+  :deep(.ed-menu--horizontal > .ed-sub-menu.is-active .ed-sub-menu__title::after) {
+    position: absolute;
+    right: 22px;
+    bottom: -1px;
+    left: 22px;
+    height: 2px;
+    content: '';
+    background: #3b82f6;
+    border-radius: 2px 2px 0 0;
+  }
+
+  :deep(.ed-menu--horizontal > .ed-sub-menu .ed-sub-menu__title .ed-sub-menu__icon-arrow) {
+    position: static;
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    color: #334155 !important;
+    transform: none;
+  }
+
+  :deep(
+      .ed-menu--horizontal > .ed-sub-menu.is-opened .ed-sub-menu__title .ed-sub-menu__icon-arrow
+    ) {
+    transform: rotate(180deg);
+  }
+
+  :deep(.ed-menu--horizontal > .ed-sub-menu.is-active.is-active .ed-sub-menu__title),
+  :deep(.ed-menu--horizontal > .ed-sub-menu.is-opened .ed-sub-menu__title) {
+    color: #0f172a !important;
+    background: transparent !important;
+  }
+
+  :deep(
+      .ed-menu--horizontal
+        > .ed-sub-menu.is-active.is-active
+        .ed-sub-menu__title
+        .ed-sub-menu__icon-arrow
+    ),
+  :deep(.ed-menu--horizontal > .ed-sub-menu.is-opened .ed-sub-menu__title .ed-sub-menu__icon-arrow),
+  :deep(.ed-menu--horizontal > .ed-sub-menu:hover .ed-sub-menu__title .ed-sub-menu__icon-arrow) {
+    color: #334155 !important;
+    fill: #334155 !important;
+  }
+
+  :deep(.ed-menu--horizontal > .ed-sub-menu .ed-sub-menu__title .ed-sub-menu__icon-arrow svg),
+  :deep(.ed-menu--horizontal > .ed-sub-menu .ed-sub-menu__title .ed-sub-menu__icon-arrow path) {
+    fill: currentColor !important;
+  }
+}
+
+.logo {
+  flex: 0 0 188px;
+  width: 188px;
+  height: 44px;
+  margin-right: 54px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.top-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #64748b;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  transition: color 0.14s ease, background 0.14s ease;
+
+  &:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+  }
+}
+
+.top-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 6px;
+  background: #e2e8f0;
+}
+</style>

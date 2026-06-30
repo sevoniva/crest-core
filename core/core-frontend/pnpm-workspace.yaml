@@ -1,0 +1,14 @@
+allowBuilds:
+  bufferutil: true
+  core-js: true
+  es5-ext: true
+  esbuild: true
+  utf-8-validate: true
+  vue-demi: true
+overrides:
+  '@babel/core': 7.29.7
+  dompurify: 3.4.11
+  esbuild: 0.28.1
+  form-data: 4.0.6
+  js-yaml: 4.2.0
+  tmp: 0.2.7

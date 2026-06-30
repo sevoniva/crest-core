@@ -1,0 +1,23 @@
+package io.crest.api.share.request;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serial;
+import java.io.Serializable;
+
+@Schema(description = "分享验证器")
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+// 定义模块接口契约和数据传输结构
+public class SharePwdValidator implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 5723073697210793005L;
+
+
+    @Schema(description = "密钥")
+    private String ciphertext;
+}

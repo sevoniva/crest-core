@@ -1,0 +1,27 @@
+package io.crest.api.chart.request;
+
+import io.crest.api.chart.dto.ViewDetailField;
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.List;
+
+
+@Data
+// 定义模块接口契约和数据传输结构
+public class ChartExcelRequestInner implements Serializable {
+    @Serial
+    private static final long serialVersionUID = -8655439241248268940L;
+
+    private String[] header;
+
+    private Integer[] excelTypes;
+
+    private List<Object[]> details;
+
+    private ViewDetailField[] detailFields;
+
+    private List<String> excelHeaderKeys;
+
+}

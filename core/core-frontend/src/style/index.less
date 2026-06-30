@@ -1,0 +1,996 @@
+// 全局设计变量统一覆盖 Element Plus 与编辑器组件库，保证主题色、字体和圆角在后台与门户中一致。
+:root:root {
+  --crest-font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --crest-font-mono: ui-monospace, Menlo, Monaco, Consolas, monospace;
+  --crest-color-primary: #3b82f6;
+  --el-color-primary: #3b82f6 !important;
+  --el-color-primary-dark-2: #2563eb !important;
+  --el-color-primary-light-3: #7db1fa !important;
+  --el-color-primary-light-5: #9fc5fb !important;
+  --el-color-primary-light-7: #c4ddfd !important;
+  --el-color-primary-light-8: #d8eafe !important;
+  --el-color-primary-light-9: #ebf4ff !important;
+  --ed-color-primary: #3b82f6 !important;
+  --ed-color-primary-dark-2: #2563eb !important;
+  --ed-color-primary-dark-20: #245bdb !important;
+  --ed-color-primary-light-3: #7db1fa !important;
+  --ed-color-primary-light-5: #9fc5fb !important;
+  --ed-color-primary-light-7: #c4ddfd !important;
+  --ed-color-primary-light-8: #d8eafe !important;
+  --ed-color-primary-light-9: #ebf4ff !important;
+  --ed-color-primary-1a: rgba(59, 130, 246, 0.1) !important;
+  --ed-color-primary-33: rgba(59, 130, 246, 0.2) !important;
+  --crest-motion-fast: 120ms;
+  --crest-motion-base: 160ms;
+  --crest-ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  font-family: var(--crest-custom_font, var(--crest-font-sans));
+  font-weight: 400;
+  color-scheme: light dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  --ed-border-radius-base: 6px !important;
+  --ed-border-color: #d9dcdf !important;
+  --ed-border-color: #d9dcdf !important;
+  --ed-disabled-border-color: #d9dcdf !important;
+  --ed-border-color-light: #dee0e3 !important;
+  --ed-border-color-lighter: #dee0e3 !important;
+  --ed-popover-border-radius: 6px !important;
+}
+
+// 基础页面背景保持纯白，具体业务页面的灰底或暗色背景由页面容器自行声明。
+body {
+  background: #ffffff;
+}
+
+// 后台主布局内的常用交互控件统一动效，避免按钮、输入框和分页在 hover 时节奏不一致。
+.common-layout {
+  .ed-button:not(.is-disabled),
+  .ed-input__wrapper,
+  .ed-select__wrapper,
+  .ed-textarea__inner,
+  .ed-menu-item,
+  .ed-sub-menu__title,
+  .ed-tabs__item,
+  .ed-pagination button,
+  .ed-pagination .number {
+    transition:
+      color var(--crest-motion-fast) var(--crest-ease-soft),
+      background-color var(--crest-motion-fast) var(--crest-ease-soft),
+      border-color var(--crest-motion-fast) var(--crest-ease-soft),
+      box-shadow var(--crest-motion-base) var(--crest-ease-soft);
+  }
+
+  .ed-table__row > td.ed-table__cell {
+    transition:
+      background-color var(--crest-motion-fast) var(--crest-ease-soft),
+      box-shadow var(--crest-motion-base) var(--crest-ease-soft);
+  }
+}
+
+// 尊重系统减少动态效果设置，降低长列表和大屏编辑场景中的动效干扰。
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+// 全局盒模型归一化，避免第三方组件和业务组件在宽高计算上出现差异。
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+// 查询表格页的顶部操作区规范，主要用于后台列表页的筛选和右侧操作按钮布局。
+.search-table {
+  border-radius: 12px !important;
+  .top-operate {
+    margin-bottom: 16px;
+
+    .right-filter {
+      text-align: right;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+
+      .ed-input + button,
+      .ed-input {
+        margin-right: 12px;
+      }
+
+      .ed-input {
+        width: 240px;
+      }
+
+      & > :last-child {
+        margin-right: 0 !important;
+      }
+    }
+  }
+}
+
+// 通用单行省略工具类，供树节点、列表项和表格内联文本复用。
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 左侧列表的基础交互样式，active 状态和 hover 状态都使用主题色透明背景。
+.list-item_primary {
+  height: 40px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+
+  .ed-icon + .label {
+    margin-left: 5.33px;
+  }
+
+  .label {
+    width: 85%;
+    font-size: 14px;
+    .ellipsis;
+  }
+
+  &:not(.active):hover {
+    background: rgba(31, 35, 41, 0.1);
+  }
+
+  &.active {
+    background: var(--ed-color-primary-1a, rgba(59, 130, 246, 0.1));
+    color: var(--ed-color-primary);
+  }
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-align-center {
+  display: flex;
+  align-items: center;
+
+  &.icon {
+    .ed-icon {
+      margin-right: 6px;
+    }
+  }
+}
+
+// 表单分组标题使用左侧色条建立层级，主要用于配置面板和创建弹窗。
+.title-form_primary {
+  font-family: var(--crest-custom_font, 'PingFang');
+  font-style: normal;
+  font-weight: 500;
+  font-size: 14px;
+  color: #1f2329;
+  position: relative;
+  padding-left: 8px;
+
+  &::before {
+    content: '';
+    width: 2px;
+    height: 14px;
+    background: var(--ed-color-primary);
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 0;
+  }
+}
+
+// 字段类型图标颜色映射，和数据集字段类型在拖拽区、列表区的视觉识别保持一致。
+.field-icon-text {
+  color: var(--ed-color-primary, #3B82F6);
+}
+
+.field-icon-time {
+  color: var(--ed-color-primary, #3B82F6);
+}
+
+.field-icon-value {
+  color: #04b49c;
+}
+
+.field-icon-location {
+  color: var(--ed-color-primary, #3B82F6);
+}
+
+.field-icon-red {
+  color: #f54a45;
+}
+
+.field-icon-url {
+  color: var(--ed-color-primary, #3B82F6);
+}
+
+.field-icon-sort {
+  font-size: 10px;
+  color: #999999;
+  margin: 0 2px 1px 0;
+}
+
+.field-icon-dimension {
+  color: var(--ed-color-primary, #3B82F6);
+}
+
+.field-icon-quota {
+  color: #04b49c;
+}
+
+// 图标按钮的命中区域统一扩展到 24px，便于表格、树和工具栏复用。
+.hover-icon {
+  cursor: pointer;
+  height: 24px !important;
+  width: 24px !important;
+  font-size: 16px !important;
+  border-radius: 6px;
+  color: #646a73 !important;
+
+  &[aria-expanded='true'] {
+    background: rgba(31, 35, 41, 0.1);
+  }
+
+  &:hover {
+    background: rgba(31, 35, 41, 0.1);
+  }
+
+  &:active {
+    background: rgba(31, 35, 41, 0.2);
+  }
+}
+
+.tree-icon {
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: 6px;
+}
+
+.hover-icon-in-table {
+  color: var(--ed-color-primary) !important;
+
+  &[aria-expanded='true'] {
+    background: var(--ed-color-primary-1a, rgba(59, 130, 246, 0.1));
+  }
+
+  &:hover {
+    background: var(--ed-color-primary-1a, rgba(59, 130, 246, 0.1));
+  }
+}
+
+.custom-popover-dark {
+  min-width: 50px !important;
+  background: @side-content-background !important;
+  padding: 0px 4px 0 4px !important;
+  border: 1px solid @side-outline-border-color !important;
+}
+
+.custom-popover-light {
+  min-width: 50px !important;
+  background: @side-content-background-light !important;
+  padding: 0px 4px 0 4px !important;
+  border: 1px solid @side-outline-border-color-light !important;
+}
+
+.custom-row {
+  flex-direction: column;
+}
+
+// 图表编辑器工具栏使用暗色背景，按钮 hover 只提供轻量反馈，避免抢占画布视觉焦点。
+.toolbar-hover-icon {
+  cursor: pointer;
+  font-size: 18px !important;
+  width: 26px !important;
+  height: 26px !important;
+  color: rgba(255, 255, 255, 1);
+  border-radius: 6px;
+
+  &:hover {
+    background: rgba(235, 235, 235, 0.1);
+  }
+
+  &:active {
+    background: transparent;
+  }
+}
+
+.toolbar-icon-disabled {
+  cursor: not-allowed !important;
+  color: #5f5f5f !important;
+
+  &:active,
+  &:hover {
+    background: transparent;
+  }
+}
+
+// 图表类型选择弹层的明暗主题样式，隐藏箭头以贴合侧边配置面板的浮层形态。
+.chart-type-style-dark {
+  background: @side-content-background !important;
+  border: 1px solid #434343 !important;
+
+  .ed-popper__arrow {
+    display: none !important;
+  }
+}
+
+.chart-type-style-light {
+  background: @side-content-background-light !important;
+
+  .ed-popper__arrow {
+    display: none !important;
+  }
+}
+
+.search-key-span {
+  color: var(--ed-color-danger);
+}
+
+.circle-button {
+  min-width: auto !important;
+}
+
+// 圆形图标按钮通过伪元素扩大 hover 背景，不改变图标本身的布局尺寸。
+.circle-button_icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .ed-icon {
+    font-size: 14px;
+    position: relative;
+    z-index: 5;
+  }
+
+  &:disabled {
+    color: #5f5f5f;
+    cursor: not-allowed;
+
+    &::after {
+      display: none !important;
+    }
+  }
+
+  width: 14px;
+  height: 14px;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+  }
+
+  &:hover {
+    &::after {
+      display: block;
+      background: var(--ed-color-primary-1a, rgba(59, 130, 246, 0.1));
+    }
+  }
+
+  &:active {
+    &::after {
+      display: block;
+      background: var(--ed-color-primary-33, rgba(59, 130, 246, 0.2));
+    }
+  }
+
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: 0.1s;
+  user-select: none;
+  outline: 0;
+  color: var(--ed-color-primary);
+  border: 0 solid transparent;
+  background-color: transparent;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.ed-table-v2__empty {
+  padding-top: 40px;
+}
+
+.primary-color {
+  color: var(--ed-color-primary, #3B82F6);
+}
+
+.svg-primary-color {
+  color: var(--ed-color-primary, #3B82F6);
+  fill: var(--ed-color-primary, #3B82F6);
+}
+
+// .ed-drawer__footer {
+//   height: 64px !important;
+//   padding: 0px !important;
+//   box-shadow: 0 -1px 0px #d7d7d7 !important;
+// }
+
+// .ed-drawer__body {
+//   padding: 0 0 64px 0 !important;
+// }
+
+.ed-tree-node.is-current > .ed-tree-node__content:not(.is-menu):after {
+  display: none;
+}
+
+.create-dialog {
+  .ed-form-item {
+    margin-bottom: 16px;
+
+    &.is-error {
+      margin-bottom: 40px;
+    }
+
+    &:last-child {
+      &.is-error {
+        margin-bottom: 24px;
+      }
+
+      margin-bottom: 0;
+    }
+  }
+}
+
+em {
+  font-style: italic !important;
+  font-synthesis: style weight !important;
+}
+
+.ed-input-number .ed-input__inner {
+  text-align: left !important;
+}
+
+.cell {
+  .is-text {
+    .ed-icon {
+      font-size: 16px;
+    }
+  }
+}
+
+// 图片预览弹窗铺满视口，关闭按钮保持在右上角固定位置。
+.img-enlarge-dialog {
+  min-width: 100vw;
+  max-height: 100vh;
+  overflow-y: hidden;
+  background: none !important;
+
+  .ed-dialog__header {
+    padding: 0px;
+
+    .ed-dialog__headerbtn {
+      .ed-icon {
+        font-size: 24px;
+        color: white;
+      }
+
+      background: rgba(31, 35, 41, 0.9);
+      height: 48px;
+      width: 48px;
+      top: 24px;
+      right: 24px;
+      padding: 12px;
+      border-radius: 50%;
+
+      &:hover {
+        background: #646a73;
+      }
+    }
+  }
+
+  .ed-dialog__body {
+    padding: 0px;
+    background-color: #1f232999;
+  }
+}
+
+.crest-icon-sense {
+  margin-right: 9px;
+  width: 16px !important;
+  height: 12px !important;
+}
+
+// 资源类型色块用于区分仪表板、大屏、数据集和数据源等入口。
+.color-panel {
+  background: var(--ed-color-primary, #3b82f6);
+}
+
+.color-dashboard {
+  background: var(--ed-color-primary, #3b82f6);
+}
+
+.color-screen {
+  background: #10b981;
+}
+
+.color-dataV {
+  background: #10b981;
+}
+
+.color-dataset {
+  background: #8b5cf6;
+}
+
+.color-datasource {
+  background: #f59e0b;
+}
+
+.ed-table {
+  --ed-table-row-hover-bg-color: #e8e9e9 !important;
+}
+
+// 数据表格统一样式覆盖普通表格和虚拟表格，保证门户、后台列表和资源表格有一致行高与表头。
+.crest-data-table.ed-table,
+.crest-data-table-v2.ed-table-v2 {
+  --ed-table-header-bg-color: #ffffff;
+  --ed-table-tr-bg-color: #ffffff;
+  --ed-table-row-hover-bg-color: #fafbfc !important;
+  --ed-table-border-color: #eef2f7;
+  color: #334155;
+  font-family: var(--crest-custom_font, var(--crest-font-sans));
+  font-size: 13px;
+}
+
+.crest-data-table.ed-table {
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crest-data-table.ed-table .ed-table__inner-wrapper::before,
+.crest-data-table.ed-table .ed-table__inner-wrapper::after {
+  display: none;
+}
+
+.crest-data-table.ed-table th.ed-table__cell,
+.crest-data-table-v2.ed-table-v2 .ed-table-v2__header-cell {
+  height: 38px;
+  padding: 9px 0;
+  background: #ffffff !important;
+  border-bottom: 1px solid #eef2f7;
+  color: #64748b;
+  font-family: var(--crest-custom_font, var(--crest-font-sans));
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.crest-data-table.ed-table td.ed-table__cell {
+  height: 42px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.crest-data-table.ed-table .cell,
+.crest-data-table-v2.ed-table-v2 .ed-table-v2__cell-text {
+  color: #334155;
+  line-height: 20px;
+}
+
+.crest-data-table.ed-table .ed-table__row:hover > td.ed-table__cell,
+.crest-data-table-v2.ed-table-v2 .ed-table-v2__row:hover .ed-table-v2__row-cell {
+  background: #fafbfc;
+}
+
+.crest-data-table.ed-table .ed-table__empty-block,
+.crest-data-table-v2.ed-table-v2 .ed-table-v2__empty {
+  min-height: 160px;
+}
+
+.crest-data-table-v2.ed-table-v2 {
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+strong {
+  font-synthesis: style weight !important;
+}
+
+.ed-date-editor .ed-range__icon {
+  font-size: 16px !important;
+}
+
+.ed-picker__popper {
+  --ed-datepicker-border-color: #dee0e3 !important;
+}
+
+.ed-dialog__headerbtn {
+  top: 21px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 导出中心消息提示承载文件名、下载入口和关闭按钮，需要比普通消息保留更多横向空间。
+.crest-message-export {
+  min-width: 20px !important;
+  padding: 16px 20px !important;
+  display: flex;
+  align-items: center;
+  box-shadow: 0px 4px 8px 0px #1f23291a;
+
+  & > p {
+    font-family: var(--crest-custom_font, 'PingFang');
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: 0px;
+    text-align: left;
+    color: #1f2329;
+    display: flex;
+    align-items: center;
+    padding-right: 24px;
+  }
+
+  .m50-export {
+    max-width: 200px;
+  }
+
+  .btn-text {
+    padding: 2px 4px;
+
+    &:hover {
+      background: var(--ed-color-primary-1a, #3B82F61a);
+    }
+  }
+
+  .ed-message__closeBtn {
+    margin-left: 28px;
+    position: relative;
+    margin-right: 0;
+    top: 0;
+    right: 0;
+    transform: translateY(0);
+    color: #646a73;
+  }
+
+  .ed-message__icon {
+    height: 16px;
+    width: 16px;
+    margin-right: 8px;
+  }
+}
+
+// 加载、错误和成功消息使用业务色边框，保证长任务反馈在浅色背景上足够明确。
+.crest-message-loading {
+  border: 1px solid var(--primary, #3B82F6) !important;
+  background: #f0f4ff !important;
+  @keyframes circle {
+    0% {
+      transform: rotate(0);
+    }
+
+    100% {
+      transform: rotate(-360deg);
+    }
+  }
+
+  .ed-message__icon {
+    color: var(--primary, #3B82F6);
+    animation: circle infinite 0.75s linear;
+  }
+}
+
+.crest-message-error {
+  border: 1px solid var(--crestDanger, #f54a45) !important;
+  background: var(--crestWhiteMsgDanger, #fef1f1) !important;
+
+  .ed-message__icon {
+    color: var(--crestDanger, #f54a45);
+  }
+}
+
+.crest-message-success {
+  border: 1px solid var(--crestSuccess, #34c724) !important;
+  background: var(--crestWhiteMsgSuccess, #f0fbef) !important;
+
+  .ed-message__icon {
+    color: var(--crestSuccess, #34c724);
+  }
+}
+
+.vjs-big-play-button {
+  top: calc(50% - 22px) !important;
+  left: calc(50% - 40px) !important;
+}
+
+// 全屏模式把 body 提升为固定容器，确保挂载到 body 的下拉框、消息和浮层不会被画布遮挡。
+.screen-full {
+  position: fixed !important;
+  z-index: 1001 !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100% !important;
+}
+
+.crest-download-custom {
+  div {
+    overflow: hidden;
+  }
+}
+
+// 预览内容尺寸策略由外层类名控制，分别覆盖铺满、宽度优先、保持原始尺寸和高度优先场景。
+.preview-content-inner-full {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.preview-content-inner-width-first {
+  width: 100%;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.preview-content-inner-size-keep {
+  width: 100%;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.preview-content-inner-keep-proportion {
+  width: 100%;
+  height: 100%;
+  display: inherit;
+  justify-content: center;
+}
+
+.preview-content-inner-height-first {
+  width: auto;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.form-item-dark {
+  .ed-input-number__decrease,
+  .ed-input-number__increase {
+    color: #a6a6a6;
+  }
+}
+
+.ed-message .ed-message__closeBtn:hover {
+  background: #ebebebe6 !important;
+}
+
+.canvas_keep-size {
+  overflow-x: auto !important;
+}
+
+// 画布和主内容滚动条统一宽度与颜色，避免嵌套滚动区域出现多套视觉样式。
+.crest-main-scrollbar {
+  ::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background: #1f23294d;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+  }
+}
+
+.ed-scrollbar__thumb {
+  background: #1f23294d !important;
+  opacity: 1 !important;
+}
+
+.ed-scrollbar__bar.is-vertical {
+  width: 8px !important;
+}
+
+.ed-scrollbar__bar.is-horizontal {
+  height: 8px !important;
+}
+
+.ed-color-picker__color {
+  border: 1px solid #dee0e3 !important;
+  border-radius: 2px;
+}
+
+.crest-el-dropdown-menu-fixed .crest-panel .right-menu-foot .footer-right {
+  line-height: 36px;
+}
+
+.ed-tabs__item {
+  padding-right: 14px !important;
+}
+
+.ed-tabs__item + .ed-tabs__item {
+  padding-left: 14px !important;
+}
+
+.ed-switch {
+  height: 22px !important;
+}
+
+.ed-radio {
+  height: 22px !important;
+  line-height: 22px !important;
+}
+
+.hidden-tooltip {
+  display: none !important;
+}
+
+.crest-collapse-style {
+  .ed-form-item__label {
+    margin-bottom: 8px !important;
+  }
+}
+
+.ed-month-table td {
+  padding: 8px 0 !important;
+}
+
+.excel-header-cell,
+.header-cell {
+  background-color: #f5f6f7 !important;
+}
+
+.logic-right {
+  .ed-select__selected-item {
+    .ed-tag {
+      max-width: 100px !important;
+    }
+  }
+}
+
+.ed-upload-list__item .ed-icon--close-tip {
+  display: none !important;
+}
+
+.is-dark.ed-select__popper.ed-tree-select__popper {
+  .ed-tree {
+    background-color: transparent;
+  }
+}
+
+.ed-menu--vertical.ed-menu--light .ed-menu-item.is-active.is-active.is-active {
+  background-color: var(--ed-color-primary-1a, #3B82F61a) !important;
+}
+
+.utree-popover {
+  padding-bottom: 0 !important;
+  .pagination-count {
+    height: auto !important;
+  }
+  .ed-pager li.number {
+    &:hover {
+      background-color: #1f23291a;
+    }
+
+    &:active {
+      background-color: #1f232933;
+    }
+  }
+  .btn-quicknext,
+  .btn-quickprev {
+    svg {
+      path[fill='#245BDB'],
+      path[fill='currentColor'] {
+        fill: var(--ed-color-primary, #3B82F6);
+      }
+    }
+
+    &:active {
+      svg {
+        path {
+          fill: var(--ed-color-primary-dark-20, #245bdb);
+        }
+      }
+    }
+  }
+}
+
+.tox-toolbar__overflow {
+  transform: translateY(-59px);
+}
+
+.tox-tinymce-inline {
+  transform: translateY(-8px);
+}
+
+.new-folder_tip {
+  .ed-popper__arrow {
+    transform: translate(46px, 0px) !important;
+  }
+}
+
+.skeleton-loading {
+  .ed-loading-spinner {
+    margin-top: 0 !important;
+    top: 0;
+    height: 100% !important;
+    width: 100%;
+  }
+  .ed-loading-text {
+    display: flex;
+    height: 100% !important;
+    width: 100%;
+    align-items: center;
+    flex-direction: column;
+  }
+  .circular {
+    display: none !important;
+  }
+}
+
+// Element Plus 弹层、选择器、分页和标签页的局部覆盖集中在全局样式末尾，便于后续升级组件库时排查。
+.ed-select__popper {
+  padding: 0 4px !important;
+  .ed-select-dropdown__item {
+    border-radius: 6px;
+  }
+
+  .ed-select-dropdown__list {
+    padding: 4px 0 !important;
+  }
+}
+
+.border-radius-12 {
+  border-radius: 12px !important;
+}
+
+.ed-card.ed-card {
+  --ed-card-border-radius: 12px !important;
+}
+.ed-message-box {
+  --ed-messagebox-border-radius: 12px !important;
+}
+
+.ed-popover.ed-popover {
+  --ed-popover-border-radius: 6px;
+}
+
+.ed-popper__arrow {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.ed-popper[data-popper-placement^='top'] > .ed-popper__arrow {
+  bottom: -5px !important;
+}
+
+.ed-popper[data-popper-placement^='right'] > .ed-popper__arrow {
+  left: -5px !important;
+}
+
+.ed-popper.is-light {
+  color: var(--ed-text-color-primary);
+}
+
+.ed-table {
+  th.ed-table__cell.is-leaf {
+    border-color: #e5e6eb;
+  }
+}
+
+.ed-dialog__headerbtn {
+  border-radius: 6px !important;
+}

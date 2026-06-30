@@ -1,0 +1,146 @@
+package io.crest.extensions.datasource.dto;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import lombok.Data;
+
+import java.io.Serializable;
+import java.util.List;
+
+@Data
+// 定义接口请求或返回数据的传输结构
+public class DatasetTableFieldDTO implements Serializable {
+    /**
+     * ID
+     */
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long id;
+
+    /**
+     * 数据源ID
+     */
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long datasourceId;
+
+    /**
+     * 数据表ID
+     */
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long datasetTableId;
+
+    /**
+     * 数据集ID
+     */
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long datasetGroupId;
+
+    /**
+     * 图表ID
+     */
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long chartId;
+
+    /**
+     * 原始字段名
+     */
+    private String originName;
+
+    /**
+     * 字段名用于展示
+     */
+    private String name;
+
+    /**
+     * excel、api 写入数据库的字段名
+     */
+    private String dbFieldName;
+
+    /**
+     * 描述
+     */
+    private String description;
+
+    /**
+     * 引擎字段名用作唯一标识
+     */
+    private String engineFieldName;
+
+    /**
+     * 维度/指标标识 d:维度，q:指标
+     */
+    private String groupType;
+
+    /**
+     * 原始字段类型
+     */
+    private String type;
+
+    private Integer precision;
+
+    private Integer scale;
+
+    /**
+     * Crest 字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制, 7-URL
+     */
+    private Integer fieldType;
+
+    /**
+     * 数据源原始类型
+     */
+    private Integer extractedFieldType;
+
+    /**
+     * 是否扩展字段 0原始 1复制 2计算字段...
+     */
+    private Integer extField;
+
+    /**
+     * 是否选中
+     */
+    private Boolean checked;
+
+    /**
+     * 列位置
+     */
+    private Integer columnIndex;
+
+    /**
+     * 同步时间
+     */
+    private Long lastSyncTime;
+
+    private String dateFormat;
+
+    /**
+     * 时间格式类型
+     */
+    private String dateFormatType;
+
+    /**
+     * 字段short name
+     */
+    private String fieldShortName;
+
+    /**
+     * 分组设置
+     */
+    private List<FieldGroupDTO> groupList;
+
+    /**
+     * 未分组的值
+     */
+    private String otherGroup;
+
+    /**
+     * 是否脱敏
+     */
+    private Boolean desensitized;
+
+    private Boolean orderChecked;
+
+
+    /**
+     * 计算字段参数
+     */
+    private List<CalParam> params;
+}

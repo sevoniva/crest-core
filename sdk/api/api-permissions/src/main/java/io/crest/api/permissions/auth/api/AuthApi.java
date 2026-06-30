@@ -1,0 +1,83 @@
+package io.crest.api.permissions.auth.api;
+
+
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
+import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import io.crest.api.permissions.auth.dto.*;
+import io.crest.api.permissions.auth.vo.PermissionVO;
+import io.crest.api.permissions.auth.vo.ResourceItemVO;
+import io.crest.api.permissions.auth.vo.ResourceVO;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import java.util.List;
+
+@Tag(name = "权限管理")
+@ApiSupport(order = 885, author = "Crest")
+// 定义模块接口契约和数据传输结构
+public interface AuthApi {
+
+    @Operation(summary = "查询资源树")
+    @ApiOperationSupport(order = 1)
+    @Parameter(name = "flag", description = "类型")
+    @GetMapping("/business-resources/{flag}")
+    List<ResourceVO> busiResource(@PathVariable("flag") String flag);
+
+    @Operation(summary = "查询对象已授权资源")
+    @ApiOperationSupport(order = 3)
+    @PostMapping("/business-permissions")
+    PermissionVO busiPermission(@RequestBody BusiPermissionRequest request);
+
+    @Operation(summary = "查询资源已授权对象")
+    @ApiOperationSupport(order = 5)
+    @PostMapping("/business-target-permissions")
+    PermissionVO busiTargetPermission(@RequestBody BusiPermissionRequest request);
+
+    @Operation(summary = "查询菜单树")
+    @ApiOperationSupport(order = 2)
+    @GetMapping("/menu-resources")
+    List<ResourceVO> menuResource();
+
+    @Operation(summary = "查询对象已授权菜单")
+    @ApiOperationSupport(order = 4)
+    @PostMapping("/menu-permissions")
+    PermissionVO menuPermission(@RequestBody MenuPermissionRequest request);
+
+    @Operation(summary = "查询菜单已授权对象")
+    @ApiOperationSupport(order = 6)
+    @PostMapping("/menu-target-permissions")
+    PermissionVO menuTargetPermission(@RequestBody MenuPermissionRequest request);
+
+    @Operation(summary = "保存资源权限")
+    @ApiOperationSupport(order = 7)
+    @PutMapping("/business-permissions")
+    void saveBusiPer(@RequestBody BusiPerEditor editor);
+
+    @Operation(summary = "资源维度保存权限")
+    @ApiOperationSupport(order = 9)
+    @PutMapping("/business-target-permissions")
+    void saveBusiTargetPer(@RequestBody BusiTargetPerCreator creator);
+
+    @Operation(summary = "保存菜单权限")
+    @ApiOperationSupport(order = 8)
+    @PutMapping("/menu-permissions")
+    void saveMenuPer(@RequestBody MenuPerEditor editor);
+
+    @Operation(summary = "菜单维度保存权限")
+    @ApiOperationSupport(order = 10)
+    @PutMapping("/menu-target-permissions")
+    void saveMenuTargetPer(@RequestBody MenuTargetPerCreator creator);
+
+
+    @Hidden
+    @PostMapping("/business-target-permissions/all")
+    List<ResourceItemVO> busiTargetPermissionAll(@RequestBody BusiPermissionRequest request);
+
+}
