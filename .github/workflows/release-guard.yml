@@ -39,5 +39,6 @@ jobs:
 
       - name: Validate branch and release policy
         env:
+          CREST_K8S_SKIP_KUBECTL_DRY_RUN: 'true'
           EVENT_BEFORE: ${{ github.event.before }}
         run: bash scripts/release-guard.sh

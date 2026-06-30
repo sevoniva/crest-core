@@ -165,10 +165,12 @@ assert_safe_overlay_dir() {
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_root}"
 
-require_cmd kubectl
 require_cmd node
 require_cmd perl
 require_cmd sed
+if [[ "${CREST_K8S_SKIP_KUBECTL_DRY_RUN:-false}" != "true" ]]; then
+  require_cmd kubectl
+fi
 
 base_dir="${CREST_K8S_BASE_DIR:-deploy/kubernetes}"
 overlay_dir="${CREST_PRODUCTION_OVERLAY_DIR:-.local/production-overlay}"

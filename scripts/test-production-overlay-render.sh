@@ -19,6 +19,7 @@ repeat_char() {
 }
 
 overlay_dir="${CREST_TEST_PRODUCTION_OVERLAY_DIR:-.local/production-overlay-smoke-$$}"
+k8s_skip_kubectl_dry_run="${CREST_K8S_SKIP_KUBECTL_DRY_RUN:-false}"
 aes_key="$(repeat_char A 32)"
 aes_iv="$(repeat_char B 16)"
 db_password="$(repeat_char D 20)"
@@ -42,6 +43,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_OVERLAY_DIR="." \
   bash scripts/render-production-overlay.sh >"${unsafe_overlay_dir_log}" 2>&1; then
   fail "render-production-overlay unexpectedly accepted the repository root as overlay dir"
@@ -53,6 +55,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_OVERLAY_DIR="/tmp/crest-production-overlay-outside" \
   bash scripts/render-production-overlay.sh >"${outside_overlay_dir_log}" 2>&1; then
   fail "render-production-overlay unexpectedly accepted an outside-repository overlay dir"
@@ -66,6 +69,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_OVERLAY_DIR="${outside_overlay_parent}/overlay" \
   bash scripts/render-production-overlay.sh >".local/production-overlay-outside-missing-parent-dir.log" 2>&1; then
   fail "render-production-overlay unexpectedly accepted an outside-repository overlay dir with missing parent"
@@ -79,6 +83,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_HOST="crest.example.com" \
   CREST_ORIGIN_LIST="https://crest.example.com" \
   CREST_DB_HOST="obproxy.example.internal" \
@@ -107,6 +112,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_HOST="crest.example.com" \
   CREST_ORIGIN_LIST="https://crest.example.com" \
   CREST_DB_HOST="obproxy.example.internal" \
@@ -136,6 +142,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_HOST="crest.example.com" \
   CREST_ORIGIN_LIST="https://crest.example.com" \
   CREST_DB_HOST="obproxy.example.internal" \
@@ -165,6 +172,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_HOST="crest.example.com" \
   CREST_ORIGIN_LIST="https://crest.example.com" \
   CREST_DB_HOST="obproxy.example.internal" \
@@ -195,6 +203,7 @@ if env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_HOST="crest.example.com" \
   CREST_ORIGIN_LIST="https://crest.example.com" \
   CREST_DB_HOST="obproxy.example.internal" \
@@ -223,6 +232,7 @@ env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_HOST="crest.example.com" \
   CREST_ORIGIN_LIST="https://crest.example.com" \
   CREST_DB_HOST="obproxy.example.internal" \
@@ -253,6 +263,7 @@ env -i \
   PATH="${PATH}" \
   HOME="${HOME:-}" \
   TMPDIR="${TMPDIR:-/tmp}" \
+  CREST_K8S_SKIP_KUBECTL_DRY_RUN="${k8s_skip_kubectl_dry_run}" \
   CREST_PRODUCTION_HOST="crest.example.com" \
   CREST_ORIGIN_LIST="https://crest.example.com" \
   CREST_DB_HOST="obproxy.example.internal" \
