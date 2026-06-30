@@ -79,7 +79,7 @@ if [[ "${args}" == *" apply "* && "${args}" == *" -f -"* ]]; then
   exit 0
 fi
 if [[ "${args}" == *" create --dry-run=server "* ]]; then
-  echo "deployment.apps/crest"
+  echo "statefulset.apps/crest"
   exit 0
 fi
 EOF
@@ -189,12 +189,12 @@ grep -Fq "docker tag crest-web:local-check crest-web:sha-0123456" "${log_file}" 
   || fail "local image mode must tag frontend image with an immutable runtime tag"
 grep -Fq "kind load docker-image --name crest-kind-test crest-service:sha-0123456 crest-web:sha-0123456" "${log_file}" \
   || fail "local image mode must load immutable images into kind"
-grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image deployment/crest crest=crest-web:sha-0123456" "${log_file}" \
-  || fail "local image mode must pin the web deployment to the local image"
-grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image deployment/crest-service crest-service=crest-service:sha-0123456" "${log_file}" \
-  || fail "local image mode must pin the service deployment to the local image"
-if grep -Fq "deployment/crest-worker" "${log_file}" || grep -Fq "deployment/crest-scheduler" "${log_file}"; then
-  fail "local image mode must not reference removed worker or scheduler deployments"
+grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image statefulset/crest crest=crest-web:sha-0123456" "${log_file}" \
+  || fail "local image mode must pin the web StatefulSet to the local image"
+grep -Fq "kubectl --context kind-crest-kind-test -n crest-kind-smoke set image statefulset/crest-service crest-service=crest-service:sha-0123456" "${log_file}" \
+  || fail "local image mode must pin the service StatefulSet to the local image"
+if grep -Fq "statefulset/crest-worker" "${log_file}" || grep -Fq "statefulset/crest-scheduler" "${log_file}"; then
+  fail "local image mode must not reference removed worker or scheduler StatefulSets"
 fi
 grep -Fq "node scripts/production-runtime-check.mjs --namespace crest-kind-smoke --context kind-crest-kind-test --timeout 19s" "${log_file}" \
   || fail "local image mode must still run runtime checks after pinning images"

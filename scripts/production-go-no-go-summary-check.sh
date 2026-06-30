@@ -827,11 +827,11 @@ grep -Eq '^[0-9a-f]{64}[[:space:]]+production-runtime-check\.txt$' "${production
   || fail "production evidence manifest must include production-runtime-check.txt"
 grep -Eq '^[0-9a-f]{64}[[:space:]]+secrets-sanitized\.json$' "${production_evidence_manifest_path}" \
   || fail "production evidence manifest must include secrets-sanitized.json"
-for deployment_evidence in \
-  deployment-crest.json \
-  deployment-crest-service.json; do
-  grep -Eq "^[0-9a-f]{64}[[:space:]]+${deployment_evidence}$" "${production_evidence_manifest_path}" \
-    || fail "production evidence manifest must include ${deployment_evidence}"
+for workload_evidence in \
+  statefulset-crest.json \
+  statefulset-crest-service.json; do
+  grep -Eq "^[0-9a-f]{64}[[:space:]]+${workload_evidence}$" "${production_evidence_manifest_path}" \
+    || fail "production evidence manifest must include ${workload_evidence}"
 done
 verify_digest_manifest_entries "${production_evidence_dir}" "${production_evidence_manifest_path}" "production evidence manifest"
 [[ "${digest_manifest_entry_count}" == "${production_evidence_file_count}" ]] \

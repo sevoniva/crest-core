@@ -361,8 +361,8 @@ spec:
                   number: 8100
 EOF
 
-replace_image "${overlay_dir}/08-crest-service-deployment.yaml" "ghcr.io/sevoniva/crest-service" "${backend_image}"
-replace_image "${overlay_dir}/11-crest-web-deployment.yaml" "ghcr.io/sevoniva/crest-web" "${frontend_image}"
+replace_image "${overlay_dir}/08-crest-service-statefulset.yaml" "ghcr.io/sevoniva/crest-service" "${backend_image}"
+replace_image "${overlay_dir}/11-crest-web-statefulset.yaml" "ghcr.io/sevoniva/crest-web" "${frontend_image}"
 
 bash scripts/production-config-check.sh "${overlay_dir}"
 info "rendered strict production overlay at ${overlay_dir}"

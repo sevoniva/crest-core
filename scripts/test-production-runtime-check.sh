@@ -83,7 +83,7 @@ function container(name, role) {
   };
 }
 
-function deployment(name) {
+function statefulSet(name) {
   const mapping = {
     crest: { component: "frontend", role: null, replicas: 2 },
     "crest-service": { component: "backend", role: "all", replicas: 2 },
@@ -93,12 +93,12 @@ function deployment(name) {
   return {
     metadata: { name, generation: 1 },
     spec: {
+      serviceName: isFrontend ? "crest-headless" : "crest-service-headless",
       replicas: item.replicas,
       revisionHistoryLimit: 3,
-      progressDeadlineSeconds: 600,
-      strategy: {
+      podManagementPolicy: "OrderedReady",
+      updateStrategy: {
         type: "RollingUpdate",
-        rollingUpdate: { maxSurge: 0, maxUnavailable: 1 },
       },
       selector: { matchLabels: { "app.kubernetes.io/name": name, "app.kubernetes.io/component": item.component } },
       template: {
@@ -133,7 +133,12 @@ function deployment(name) {
         },
       },
     },
-    status: { observedGeneration: 1, availableReplicas: item.replicas },
+    status: {
+      observedGeneration: 1,
+      readyReplicas: item.replicas,
+      currentReplicas: item.replicas,
+      updatedReplicas: item.replicas,
+    },
   };
 }
 
@@ -216,11 +221,14 @@ function secret(name) {
 }
 
 function service(name) {
-  const component = name === "crest" ? "frontend" : "backend";
+  const headless = name === "crest-headless" || name === "crest-service-headless";
+  const appName = name === "crest-headless" ? "crest" : name === "crest-service-headless" ? "crest-service" : name;
+  const component = appName === "crest" ? "frontend" : "backend";
   return {
     spec: {
       type: "ClusterIP",
-      selector: { "app.kubernetes.io/name": name, "app.kubernetes.io/component": component },
+      clusterIP: headless ? "None" : "10.96.0.10",
+      selector: { "app.kubernetes.io/name": appName, "app.kubernetes.io/component": component },
       ports: [{ port: 8100 }],
     },
   };
@@ -282,7 +290,11 @@ let output;
 if (kind === "namespace") output = { metadata: { name } };
 else if (kind === "configmap") output = configMap();
 else if (kind === "secret") output = secret(name);
-else if (kind === "deployment") output = deployment(name);
+else if (kind === "deployment") output = { items: [] };
+else if (kind === "deployments") output = { items: [] };
+else if (kind === "statefulset") output = statefulSet(name);
+else if (kind === "statefulsets") output = { items: [statefulSet("crest"), statefulSet("crest-service")] };
+else if (kind === "hpa") output = { items: [] };
 else if (kind === "pods") output = pods(argv[argv.indexOf("-l") + 1]);
 else if (kind === "service") output = service(name);
 else if (kind === "endpoints") output = { subsets: [{ addresses: [{ ip: "10.0.0.1" }] }] };

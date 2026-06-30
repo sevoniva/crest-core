@@ -11,8 +11,8 @@
 ```text
 Ingress + TLS
   -> crest frontend ClusterIP Service
-  -> crest frontend Deployment, 2 replicas
-  -> crest-service backend Deployment, 2 replicas
+  -> crest frontend StatefulSet, 2 replicas
+  -> crest-service backend StatefulSet, 2 replicas
   -> external shared Redis Cluster
   -> external OceanBase Oracle tenant/schema
 ```
@@ -27,7 +27,7 @@ Ingress + TLS
 
 发布与安全基线：
 
-- frontend 和后端都使用 `RollingUpdate`，并统一设置 `maxSurge=0`、`maxUnavailable=1`。发布过程中单个 Deployment 不会临时扩到第 3 个 Pod；该策略要求单 Pod 能承载发布窗口内的基础流量。
+- frontend 和后端都使用 StatefulSet `OrderedReady` 滚动更新，固定 `crest-0/1` 与 `crest-service-0/1` 两个 Pod 身份。发布过程中不会临时创建第 3 个同类 Pod；该策略要求单 Pod 能承载发布窗口内的基础流量。
 - Quartz 调度、Redis Streams 消费和 API 都在 `crest-service` 后端 Pod 内运行，通过 Quartz JDBC Cluster、Redis 锁和数据库状态抢占控制重复执行风险。
 - 所有 Pod 使用非 root 用户 `10001`、禁用 ServiceAccount token 自动挂载、丢弃 Linux capabilities、禁止提权、启用 `seccompProfile: RuntimeDefault`，并将容器根文件系统设为只读。
 - 后端仅将 `/opt/crest/data` 挂到 RWX PVC；日志、缓存和 `/tmp` 使用带 `sizeLimit` 的 `emptyDir`，避免应用写入镜像层或打满节点磁盘。
@@ -58,8 +58,9 @@ kubectl create --dry-run=client -f deploy/kubernetes -o name
 | `02-crest-redis-secret.yaml` | Redis ACL 用户名和密码 |
 | `02a-crest-serviceaccount.yaml` | 应用 ServiceAccount |
 | `03-crest-data-pvc.yaml` | 应用共享数据卷，必须 RWX |
-| `08-crest-service-deployment.yaml` | 组合后端多副本 |
-| `09`-`12` | 后端/前端 ClusterIP Service 与前端 Nginx 配置 |
+| `07-crest-service-headless-service.yaml` | 后端 StatefulSet headless Service |
+| `08-crest-service-statefulset.yaml` | 组合后端多副本 |
+| `09`-`12` | 后端/前端 ClusterIP Service、前端 StatefulSet headless Service 与前端 Nginx 配置 |
 | `13-crest-ingress.yaml` | 前端 Ingress TLS |
 | `16`-`17` | PDB |
 | `19`-`20` | NetworkPolicy |
@@ -228,7 +229,7 @@ bash scripts/kind-smoke-test.sh
 
 本地 kind 需要验证当前工作区刚构建的镜像时，先生成 `crest-service:local-check` 和
 `crest-web:local-check`，再让脚本重打 `sha-<commit>` 形式的不可变标签并装载进 kind。
-脚本会把 `crest` 和 `crest-service` 两个 Deployment 切到本地镜像后再执行 runtime check。
+脚本会把 `crest` 和 `crest-service` 两个 StatefulSet 切到本地镜像后再执行 runtime check。
 
 ```bash
 CREST_DOCKER_BUILD_ARTIFACTS=true bash scripts/docker-build-check.sh
@@ -265,8 +266,8 @@ bash scripts/production-config-check.sh <production-overlay-path>
 
 ```bash
 kubectl get pods
-kubectl rollout status deploy/crest
-kubectl rollout status deploy/crest-service
+kubectl rollout status statefulset/crest
+kubectl rollout status statefulset/crest-service
 ```
 
 后端 readiness 应同时覆盖数据库和 Redis；日志不应持续出现数据库连接失败、Redis 连接失败、任务重复执行或文件写入失败。
@@ -277,7 +278,7 @@ kubectl rollout status deploy/crest-service
 node scripts/production-runtime-check.mjs --namespace <namespace> --context <kube-context>
 ```
 
-该检查会等待两个 Deployment rollout，确认 Pod Ready、滚动策略、拓扑分散、探针、Service 保持 `ClusterIP`、Service endpoint 存在、Ingress TLS 与 `CREST_ORIGIN_LIST` 一致、`crest-tls` Secret 可用、`crest-data` PVC 已绑定为 RWX、PDB/NetworkPolicy 规则、容器安全上下文、`emptyDir.sizeLimit` 和资源 requests/limits 仍符合生产基线。若需要强制 Ingress 已分配负载均衡地址，增加：
+该检查会等待两个 StatefulSet rollout，确认 Pod Ready、固定两个 Pod 身份、拓扑分散、探针、流量 Service 保持 `ClusterIP`、headless Service 存在、Service endpoint 存在、Ingress TLS 与 `CREST_ORIGIN_LIST` 一致、`crest-tls` Secret 可用、`crest-data` PVC 已绑定为 RWX、PDB/NetworkPolicy 规则、容器安全上下文、`emptyDir.sizeLimit` 和资源 requests/limits 仍符合生产基线。若需要强制 Ingress 已分配负载均衡地址，增加：
 
 ```bash
 CREST_REQUIRE_INGRESS_ADDRESS=true node scripts/production-runtime-check.mjs --namespace <namespace>

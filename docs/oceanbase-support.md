@@ -66,7 +66,7 @@ obclient --default-character-set=utf8mb4 \
 ## 验收清单
 
 - 系统库能连接已初始化 schema 并完成登录。
-- 生产 Kubernetes 只启动 `crest` 和 `crest-service` 两个 Deployment；`crest-service` 以 `CREST_RUNTIME_ROLE=all` 两副本承载 API、worker 和 scheduler。
+- 生产 Kubernetes 只启动 `crest` 和 `crest-service` 两个 StatefulSet；`crest-service` 以 `CREST_RUNTIME_ROLE=all` 两副本承载 API、worker 和 scheduler。
 - 外部 Redis Cluster readiness 通过，任务队列、锁和 WebSocket 广播可用；至少 3 个真实节点，所有 key/channel/stream/group 使用独立 `CREST_REDIS_KEY_PREFIX`，并保持同一个非空 Redis Cluster hash tag；共享 Redis 生产环境使用独立 ACL 用户和密码。
 - OceanBase Oracle 业务数据源连接校验、schema 读取、SQL 预览、分页查询、数据集预览和图表查询可用。
 - `CREST_ALLOWED_DATASOURCE_TYPES` 只开放 `obOracle,Excel,ExcelRemote,API`。

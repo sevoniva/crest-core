@@ -54,7 +54,7 @@ flowchart TB
 
 | 依赖 | 最低要求 | 生产建议 |
 | --- | --- | --- |
-| Kubernetes | 支持 Deployment、PDB、NetworkPolicy、Ingress、PVC | 多节点集群，启用准入策略和镜像仓库访问控制 |
+| Kubernetes | 支持 StatefulSet、PDB、NetworkPolicy、Ingress、PVC | 多节点集群，启用准入策略和镜像仓库访问控制 |
 | Ingress | HTTPS 入口 | 使用企业证书管理或 cert-manager |
 | OceanBase Oracle | 已创建租户、schema、账号和权限 | OBProxy 高可用，账号最小权限，开启备份策略 |
 | Redis Cluster | 至少 3 个节点 | 独立 ACL 用户，启用 TLS 时配置证书链路 |
@@ -223,15 +223,15 @@ bash scripts/enterprise-readiness-check.sh
 
 | 组件 | 策略 |
 | --- | --- |
-| frontend | 2 副本，`maxSurge=0`、`maxUnavailable=1`，Ingress 流量进入 Service |
-| backend | 2 副本，`CREST_RUNTIME_ROLE=all`，`maxSurge=0`、`maxUnavailable=1`，readiness 同时覆盖应用、数据库和 Redis |
+| frontend | StatefulSet 2 副本，固定 `crest-0/1`，Ingress 流量进入 Service |
+| backend | StatefulSet 2 副本，固定 `crest-service-0/1`，`CREST_RUNTIME_ROLE=all`，readiness 同时覆盖应用、数据库和 Redis |
 | async worker | 由 backend Pod 内部承载，Redis Streams consumer group 协调 |
 | scheduler | 由 backend Pod 内部承载，Quartz JDBC Cluster 防重复触发 |
 | PVC | `ReadWriteMany`，供 backend 多副本共享 |
 | PDB | 防止自愿驱逐导致全部副本不可用 |
 | topology spread | 多节点集群中优先分散副本 |
 
-两个业务 Deployment 都使用 `maxSurge=0`、`maxUnavailable=1`。发布过程中每个 Deployment 最多保持 2 个 Pod，不会临时增加到 3 个；代价是滚动发布期间对应工作负载的可用 Pod 可能短暂降到 1 个。Kubernetes Deployment 无法同时满足“不临时增加到 3 个 Pod”和“发布期间始终 2 个 Pod 可用”。生产上线前必须证明单 Pod 能承载发布窗口内的基础流量，并把低峰发布、快速回滚和容量证据纳入审批。
+两个业务工作负载都使用 StatefulSet `OrderedReady` 滚动更新。发布过程中 Pod 名固定为 `crest-0/1` 和 `crest-service-0/1`，不会像 Deployment 滚动发布那样在旧 Pod Terminating 时额外创建第 3 个同类 Pod；代价是滚动发布期间对应工作负载的可用 Pod 可能短暂降到 1 个。生产上线前必须证明单 Pod 能承载发布窗口内的基础流量，并把低峰发布、快速回滚和容量证据纳入审批。
 
 滚动发布前必须确认：
 
@@ -273,7 +273,7 @@ Go/No-Go 审批时还需要 clean source、真实 runtime、生产 evidence bund
 | 应用 | 登录、菜单、仪表盘、数据集预览、导出、WebSocket 刷新 |
 | 数据库 | OB Oracle 初始化成功、连接池稳定、备份恢复记录完整 |
 | Redis | Cluster 节点、ACL、key 前缀、hash tag、Streams、Pub/Sub 验证通过 |
-| Kubernetes | Deployment Ready、PDB、NetworkPolicy、PVC、Ingress、Secret 脱敏证据完整 |
+| Kubernetes | StatefulSet Ready、PDB、NetworkPolicy、PVC、Ingress、Secret 脱敏证据完整 |
 | 安全 | SAST/SCA 0、高危镜像漏洞 0、license 0 违规、API docs 关闭 |
 | 运维 | runtime check 通过、监控接入、故障演练记录完整 |
 | 交付 | clean source 或干净历史策略明确，历史凭据处置证据完整 |

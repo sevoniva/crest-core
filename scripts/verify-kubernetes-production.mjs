@@ -201,8 +201,8 @@ function allByKind(items, kind) {
   return items.filter((item) => item.kind === kind);
 }
 
-function container(deployment) {
-  return deployment?.spec?.template?.spec?.containers?.[0];
+function container(workload) {
+  return workload?.spec?.template?.spec?.containers?.[0];
 }
 
 function envMap(containerSpec) {
@@ -223,29 +223,29 @@ function requireEnvFrom(containerSpec, type, name, owner) {
   assert(ref[type]?.optional !== true, `${owner} must require ${name}`);
 }
 
-function volumeByName(deployment, name) {
-  return (deployment?.spec?.template?.spec?.volumes || []).find((item) => item.name === name);
+function volumeByName(workload, name) {
+  return (workload?.spec?.template?.spec?.volumes || []).find((item) => item.name === name);
 }
 
-function hasVolume(deployment, name, type) {
-  const volume = volumeByName(deployment, name);
+function hasVolume(workload, name, type) {
+  const volume = volumeByName(workload, name);
   return Boolean(volume?.[type]);
 }
 
-function hasEmptyDir(deployment, name) {
-  return hasVolume(deployment, name, "emptyDir");
+function hasEmptyDir(workload, name) {
+  return hasVolume(workload, name, "emptyDir");
 }
 
 function hasVolumeMount(containerSpec, name, mountPath) {
   return (containerSpec?.volumeMounts || []).some((item) => item.name === name && item.mountPath === mountPath);
 }
 
-function checkWritableEmptyDir(deployment, containerSpec, deploymentName, volumeName, mountPath) {
-  const volume = volumeByName(deployment, volumeName);
-  assert(volume?.emptyDir, `${deploymentName} must define writable emptyDir ${volumeName}`);
-  assert(volume.emptyDir.sizeLimit, `${deploymentName} emptyDir ${volumeName} must set sizeLimit`);
+function checkWritableEmptyDir(workload, containerSpec, workloadName, volumeName, mountPath) {
+  const volume = volumeByName(workload, volumeName);
+  assert(volume?.emptyDir, `${workloadName} must define writable emptyDir ${volumeName}`);
+  assert(volume.emptyDir.sizeLimit, `${workloadName} emptyDir ${volumeName} must set sizeLimit`);
   assert(hasVolumeMount(containerSpec, volumeName, mountPath),
-    `${deploymentName} must mount ${volumeName} at ${mountPath}`);
+    `${workloadName} must mount ${volumeName} at ${mountPath}`);
 }
 
 function checkContainerHardening(containerSpec, name) {
@@ -258,21 +258,16 @@ function checkContainerHardening(containerSpec, name) {
     `${name} must drop all Linux capabilities`);
 }
 
-function checkDeploymentRollout(deployment, name, strategyType, expectedRollingUpdate = { maxSurge: 0, maxUnavailable: 1 }) {
-  assert(deployment.spec?.revisionHistoryLimit === 3, `${name} must keep revisionHistoryLimit=3`);
-  assert(deployment.spec?.progressDeadlineSeconds === 600, `${name} must set progressDeadlineSeconds=600`);
-  assert(deployment.spec?.strategy?.type === strategyType, `${name} must use ${strategyType} rollout strategy`);
-  if (strategyType === "RollingUpdate") {
-    const rollingUpdate = deployment.spec.strategy.rollingUpdate || {};
-    assert(rollingUpdate.maxSurge === expectedRollingUpdate.maxSurge,
-      `${name} rolling update must set maxSurge=${expectedRollingUpdate.maxSurge}`);
-    assert(rollingUpdate.maxUnavailable === expectedRollingUpdate.maxUnavailable,
-      `${name} rolling update must set maxUnavailable=${expectedRollingUpdate.maxUnavailable}`);
-  }
+function checkStatefulSetRollout(statefulSet, name, serviceName) {
+  assert(statefulSet.spec?.serviceName === serviceName, `${name} must use headless Service ${serviceName}`);
+  assert(statefulSet.spec?.revisionHistoryLimit === 3, `${name} must keep revisionHistoryLimit=3`);
+  assert(statefulSet.spec?.podManagementPolicy === "OrderedReady", `${name} must use OrderedReady pod management`);
+  assert(statefulSet.spec?.updateStrategy?.type === "RollingUpdate", `${name} must use StatefulSet RollingUpdate`);
+  assert(!statefulSet.spec?.strategy, `${name} must not use Deployment rollout strategy fields`);
 }
 
-function checkPodHardening(deployment, name, requireFsGroup) {
-  const podSpec = deployment.spec?.template?.spec || {};
+function checkPodHardening(workload, name, requireFsGroup) {
+  const podSpec = workload.spec?.template?.spec || {};
   const securityContext = podSpec.securityContext || {};
   assert(podSpec.terminationGracePeriodSeconds === 60, `${name} must set terminationGracePeriodSeconds=60`);
   assert(securityContext.runAsNonRoot === true, `${name} must run as non-root`);
@@ -284,9 +279,9 @@ function checkPodHardening(deployment, name, requireFsGroup) {
   }
 }
 
-function checkTopologySpread(deployment, name) {
-  const selector = deployment.spec?.selector?.matchLabels || {};
-  const constraints = deployment.spec?.template?.spec?.topologySpreadConstraints || [];
+function checkTopologySpread(workload, name) {
+  const selector = workload.spec?.selector?.matchLabels || {};
+  const constraints = workload.spec?.template?.spec?.topologySpreadConstraints || [];
   const hasHostSpread = constraints.some((constraint) => {
     const labels = constraint.labelSelector?.matchLabels || {};
     return constraint.maxSkew === 1
@@ -424,21 +419,21 @@ function checkConfig(items) {
   }
 }
 
-function checkBackendDeployment(items) {
-  const deployment = byKindAndName(items, "Deployment", "crest-service");
-  assert(deployment, "missing backend Deployment crest-service");
-  assert(deployment.spec?.replicas === 2, "crest-service combined backend deployment must run exactly 2 replicas");
-  checkDeploymentRollout(deployment, "crest-service", "RollingUpdate", { maxSurge: 0, maxUnavailable: 1 });
-  checkPodHardening(deployment, "crest-service", true);
-  checkTopologySpread(deployment, "crest-service");
-  assert((deployment.spec?.template?.spec?.initContainers || []).length === 0,
+function checkBackendStatefulSet(items) {
+  const statefulSet = byKindAndName(items, "StatefulSet", "crest-service");
+  assert(statefulSet, "missing backend StatefulSet crest-service");
+  assert(statefulSet.spec?.replicas === 2, "crest-service combined backend StatefulSet must run exactly 2 replicas");
+  checkStatefulSetRollout(statefulSet, "crest-service", "crest-service-headless");
+  checkPodHardening(statefulSet, "crest-service", true);
+  checkTopologySpread(statefulSet, "crest-service");
+  assert((statefulSet.spec?.template?.spec?.initContainers || []).length === 0,
     "crest-service must not use initContainers in production manifest");
-  assert(deployment.spec?.template?.spec?.serviceAccountName === "crest",
+  assert(statefulSet.spec?.template?.spec?.serviceAccountName === "crest",
     "crest-service must use crest ServiceAccount");
-  assert(deployment.spec?.template?.spec?.automountServiceAccountToken === false,
+  assert(statefulSet.spec?.template?.spec?.automountServiceAccountToken === false,
     "crest-service must not automount service account tokens");
 
-  const appContainer = container(deployment);
+  const appContainer = container(statefulSet);
   checkContainerImage(appContainer, "crest-service");
   checkPreStopDrain(appContainer, "crest-service");
   checkResources(appContainer, "crest-service");
@@ -452,66 +447,28 @@ function checkBackendDeployment(items) {
   requireEnvFrom(appContainer, "secretRef", "crest-db-secret", "crest-service");
   requireEnvFrom(appContainer, "secretRef", "crest-redis-secret", "crest-service");
   checkBackendProbes(appContainer, "crest-service");
-  assert(hasVolume(deployment, "crest-data", "persistentVolumeClaim"), "crest-service must mount crest-data PVC");
+  assert(hasVolume(statefulSet, "crest-data", "persistentVolumeClaim"), "crest-service must mount crest-data PVC");
   assert(hasVolumeMount(appContainer, "crest-data", "/opt/crest/data"),
     "crest-service must mount persistent data path");
-  checkWritableEmptyDir(deployment, appContainer, "crest-service", "crest-cache", "/opt/crest/cache");
-  checkWritableEmptyDir(deployment, appContainer, "crest-service", "crest-logs", "/opt/crest/logs");
-  checkWritableEmptyDir(deployment, appContainer, "crest-service", "tmp", "/tmp");
+  checkWritableEmptyDir(statefulSet, appContainer, "crest-service", "crest-cache", "/opt/crest/cache");
+  checkWritableEmptyDir(statefulSet, appContainer, "crest-service", "crest-logs", "/opt/crest/logs");
+  checkWritableEmptyDir(statefulSet, appContainer, "crest-service", "tmp", "/tmp");
 }
 
-function checkRoleDeployment(items, name, role, minReplicas) {
-  const deployment = byKindAndName(items, "Deployment", name);
-  assert(deployment, `missing ${role} Deployment ${name}`);
-  assert(deployment.spec?.replicas >= minReplicas, `${name} must run at least ${minReplicas} replica(s)`);
-  checkDeploymentRollout(deployment, name, "RollingUpdate");
-  checkPodHardening(deployment, name, true);
-  if (minReplicas >= 2) {
-    checkTopologySpread(deployment, name);
-  }
-  assert((deployment.spec?.template?.spec?.initContainers || []).length === 0,
-    `${name} must not use initContainers in production manifest`);
-  assert(deployment.spec?.template?.spec?.serviceAccountName === "crest",
-    `${name} must use crest ServiceAccount`);
-  assert(deployment.spec?.template?.spec?.automountServiceAccountToken === false,
-    `${name} must not automount service account tokens`);
-
-  const appContainer = container(deployment);
-  checkContainerImage(appContainer, name);
-  checkPreStopDrain(appContainer, name);
-  checkResources(appContainer, name);
-  checkContainerHardening(appContainer, name);
-  assert(!appContainer.command && !appContainer.args, `${name} must not override command or args`);
-  assert(envValue(appContainer, "CREST_RUNTIME_ROLE") === role,
-    `${name} must set CREST_RUNTIME_ROLE=${role}`);
-  assert(envMap(appContainer).CREST_WORKER_ID?.valueFrom?.fieldRef?.fieldPath === "metadata.name",
-    `${name} must derive CREST_WORKER_ID from pod name`);
-  requireEnvFrom(appContainer, "configMapRef", "crest-env", name);
-  requireEnvFrom(appContainer, "secretRef", "crest-db-secret", name);
-  requireEnvFrom(appContainer, "secretRef", "crest-redis-secret", name);
-  checkBackendProbes(appContainer, name);
-  assert(hasVolume(deployment, "crest-data", "persistentVolumeClaim"), `${name} must mount crest-data PVC`);
-  assert(hasVolumeMount(appContainer, "crest-data", "/opt/crest/data"),
-    `${name} must mount persistent data path`);
-  checkWritableEmptyDir(deployment, appContainer, name, "crest-cache", "/opt/crest/cache");
-  checkWritableEmptyDir(deployment, appContainer, name, "crest-logs", "/opt/crest/logs");
-  checkWritableEmptyDir(deployment, appContainer, name, "tmp", "/tmp");
-}
-
-function checkFrontendDeployment(items) {
-  const deployment = byKindAndName(items, "Deployment", "crest");
-  assert(deployment, "missing frontend Deployment crest");
-  assert(deployment.spec?.replicas === 2, "frontend must run exactly 2 replicas");
-  checkDeploymentRollout(deployment, "crest", "RollingUpdate");
-  checkPodHardening(deployment, "crest", false);
-  checkTopologySpread(deployment, "crest");
-  assert((deployment.spec?.template?.spec?.initContainers || []).length === 0,
+function checkFrontendStatefulSet(items) {
+  const statefulSet = byKindAndName(items, "StatefulSet", "crest");
+  assert(statefulSet, "missing frontend StatefulSet crest");
+  assert(statefulSet.spec?.replicas === 2, "frontend StatefulSet must run exactly 2 replicas");
+  checkStatefulSetRollout(statefulSet, "crest", "crest-headless");
+  checkPodHardening(statefulSet, "crest", false);
+  checkTopologySpread(statefulSet, "crest");
+  assert((statefulSet.spec?.template?.spec?.initContainers || []).length === 0,
     "frontend must not use initContainers in production manifest");
-  assert(deployment.spec?.template?.spec?.serviceAccountName === "crest",
+  assert(statefulSet.spec?.template?.spec?.serviceAccountName === "crest",
     "frontend must use crest ServiceAccount");
-  assert(deployment.spec?.template?.spec?.automountServiceAccountToken === false,
+  assert(statefulSet.spec?.template?.spec?.automountServiceAccountToken === false,
     "frontend must not automount service account tokens");
-  const appContainer = container(deployment);
+  const appContainer = container(statefulSet);
   checkContainerImage(appContainer, "crest");
   checkPreStopDrain(appContainer, "crest");
   checkResources(appContainer, "crest");
@@ -519,9 +476,9 @@ function checkFrontendDeployment(items) {
   assert(!appContainer.command && !appContainer.args, "frontend must not override command or args");
   assert(appContainer?.readinessProbe?.httpGet && appContainer?.livenessProbe?.httpGet,
     "frontend probes must use HTTP GET");
-  checkWritableEmptyDir(deployment, appContainer, "crest", "nginx-cache", "/var/cache/nginx");
-  checkWritableEmptyDir(deployment, appContainer, "crest", "nginx-run", "/var/run/nginx");
-  checkWritableEmptyDir(deployment, appContainer, "crest", "tmp", "/tmp");
+  checkWritableEmptyDir(statefulSet, appContainer, "crest", "nginx-cache", "/var/cache/nginx");
+  checkWritableEmptyDir(statefulSet, appContainer, "crest", "nginx-run", "/var/run/nginx");
+  checkWritableEmptyDir(statefulSet, appContainer, "crest", "tmp", "/tmp");
 }
 
 function readNginxConfig(relativePath) {
@@ -538,6 +495,8 @@ function checkNginxConfig(items) {
     "crest-nginx-config nginx.conf must match deploy/nginx/nginx.conf");
   assert(data["default.conf"] === readNginxConfig("deploy/nginx/default.conf"),
     "crest-nginx-config default.conf must match deploy/nginx/default.conf");
+  assert(data["default.conf"].includes("charset utf-8;"),
+    "crest-nginx-config default.conf must force utf-8 charset for browser text assets");
 }
 
 function ruleAllowsPort(rule, port) {
@@ -631,8 +590,12 @@ function checkPodDisruptionBudget(items, name, minAvailable, labels) {
 
 function checkSupportResources(items) {
   const deployments = allByKind(items, "Deployment").map((item) => item.metadata?.name).sort();
-  assert(JSON.stringify(deployments) === JSON.stringify(["crest", "crest-service"]),
-    `production deployment must contain only crest and crest-service Deployments, got ${deployments.join(", ")}`);
+  assert(deployments.length === 0,
+    `production deployment must not include legacy Deployments, got ${deployments.join(", ")}`);
+
+  const statefulSets = allByKind(items, "StatefulSet").map((item) => item.metadata?.name).sort();
+  assert(JSON.stringify(statefulSets) === JSON.stringify(["crest", "crest-service"]),
+    `production deployment must contain only crest and crest-service StatefulSets, got ${statefulSets.join(", ")}`);
 
   assert(allByKind(items, "HorizontalPodAutoscaler").length === 0, "minimal deployment must not include HPA");
   const pdbs = allByKind(items, "PodDisruptionBudget").map((item) => item.metadata?.name).sort();
@@ -649,6 +612,8 @@ function checkSupportResources(items) {
   for (const removedName of ["crest-worker", "crest-scheduler"]) {
     assert(!byKindAndName(items, "Deployment", removedName),
       `two-workload production deployment must not include ${removedName} Deployment`);
+    assert(!byKindAndName(items, "StatefulSet", removedName),
+      `two-workload production deployment must not include ${removedName} StatefulSet`);
     assert(!byKindAndName(items, "PodDisruptionBudget", removedName),
       `two-workload production deployment must not include ${removedName} PDB`);
   }
@@ -669,6 +634,7 @@ function checkSupportResources(items) {
   }
 
   assert(!byKindAndName(items, "Deployment", "crest-redis"), "production manifest must use external shared Redis Cluster");
+  assert(!byKindAndName(items, "StatefulSet", "crest-redis"), "production manifest must use external shared Redis Cluster");
   assert(!byKindAndName(items, "PersistentVolumeClaim", "crest-redis-data"),
     "production manifest must not create internal Redis PVC");
   assert(!byKindAndName(items, "ConfigMap", "crest-redis-config"),
@@ -715,6 +681,7 @@ function checkSupportResources(items) {
   const backendService = byKindAndName(items, "Service", "crest-service");
   assert(backendService?.spec?.type === "ClusterIP" || backendService?.spec?.type === undefined,
     "crest-service Service must stay ClusterIP");
+  assert(backendService?.spec?.clusterIP !== "None", "crest-service traffic Service must not be headless");
   assert(backendService?.spec?.selector?.["app.kubernetes.io/name"] === "crest-service",
     "crest-service must route to backend pod");
   assert(backendService?.spec?.selector?.["app.kubernetes.io/component"] === "backend",
@@ -723,18 +690,33 @@ function checkSupportResources(items) {
   const frontendService = byKindAndName(items, "Service", "crest");
   assert(frontendService?.spec?.type === "ClusterIP" || frontendService?.spec?.type === undefined,
     "crest Service must stay ClusterIP and be exposed through Ingress/TLS");
+  assert(frontendService?.spec?.clusterIP !== "None", "crest traffic Service must not be headless");
   assert(!(frontendService?.spec?.ports || []).some((port) => port.nodePort),
     "crest Service must not expose nodePort in production manifest");
   assert(frontendService?.spec?.selector?.["app.kubernetes.io/name"] === "crest",
     "crest Service must route to frontend pod");
+
+  const backendHeadless = byKindAndName(items, "Service", "crest-service-headless");
+  assert(backendHeadless?.spec?.clusterIP === "None", "crest-service-headless must be a headless Service");
+  assert(backendHeadless?.spec?.selector?.["app.kubernetes.io/name"] === "crest-service",
+    "crest-service-headless must select backend pods");
+  assert(backendHeadless?.spec?.selector?.["app.kubernetes.io/component"] === "backend",
+    "crest-service-headless must select backend component");
+
+  const frontendHeadless = byKindAndName(items, "Service", "crest-headless");
+  assert(frontendHeadless?.spec?.clusterIP === "None", "crest-headless must be a headless Service");
+  assert(frontendHeadless?.spec?.selector?.["app.kubernetes.io/name"] === "crest",
+    "crest-headless must select frontend pods");
+  assert(frontendHeadless?.spec?.selector?.["app.kubernetes.io/component"] === "frontend",
+    "crest-headless must select frontend component");
 }
 
 const rendered = renderOverlay();
 const items = rendered.items || [];
 
 checkConfig(items);
-checkBackendDeployment(items);
-checkFrontendDeployment(items);
+checkBackendStatefulSet(items);
+checkFrontendStatefulSet(items);
 checkNginxConfig(items);
 checkNetworkPolicies(items);
 checkIngress(items);

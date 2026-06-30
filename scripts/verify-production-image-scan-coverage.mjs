@@ -30,21 +30,24 @@ function readJson(filePath, description) {
   }
 }
 
-const deploymentFiles = [
-  "deployment-crest.json",
-  "deployment-crest-service.json",
+const workloadFiles = [
+  "statefulset-crest.json",
+  "statefulset-crest-service.json",
 ];
 
 const deployedImages = new Set();
-for (const fileName of deploymentFiles) {
+for (const fileName of workloadFiles) {
   const filePath = path.join(productionEvidenceDir, fileName);
   if (!existsSync(filePath)) {
     fail(`production evidence missing ${fileName}`);
   }
-  const deployment = readJson(filePath, fileName);
-  const containers = deployment?.spec?.template?.spec?.containers;
+  const workload = readJson(filePath, fileName);
+  if (workload?.kind !== "StatefulSet") {
+    fail(`${fileName} must describe a StatefulSet`);
+  }
+  const containers = workload?.spec?.template?.spec?.containers;
   if (!Array.isArray(containers) || containers.length === 0) {
-    fail(`${fileName} must include deployment containers`);
+    fail(`${fileName} must include StatefulSet containers`);
   }
   for (const container of containers) {
     const image = container?.image;

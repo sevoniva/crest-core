@@ -182,7 +182,7 @@ info "collecting cluster and namespace state into ${output_dir}"
 
 k_cluster version --short > "${output_dir}/kubectl-version.txt" 2>&1 || true
 k_cluster get namespace "${namespace}" -o json > "${output_dir}/namespace.json"
-k get deployments -o wide > "${output_dir}/deployments.txt"
+k get statefulsets -o wide > "${output_dir}/statefulsets.txt"
 k get pods -o wide > "${output_dir}/pods.txt"
 k get services -o wide > "${output_dir}/services.txt"
 k get ingress -o wide > "${output_dir}/ingress.txt"
@@ -192,10 +192,12 @@ k get networkpolicy -o wide > "${output_dir}/networkpolicies.txt"
 k get events --sort-by='.lastTimestamp' > "${output_dir}/events.txt" || true
 
 for resource in \
-  deployment/crest \
-  deployment/crest-service \
+  statefulset/crest \
+  statefulset/crest-service \
   service/crest \
   service/crest-service \
+  service/crest-headless \
+  service/crest-service-headless \
   ingress/crest \
   pvc/crest-data \
   pdb/crest \

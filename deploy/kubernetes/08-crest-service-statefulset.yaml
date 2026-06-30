@@ -1,19 +1,17 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: crest-service
   labels:
     app.kubernetes.io/name: crest-service
     app.kubernetes.io/component: backend
 spec:
+  serviceName: crest-service-headless
   replicas: 2
   revisionHistoryLimit: 3
-  progressDeadlineSeconds: 600
-  strategy:
+  podManagementPolicy: OrderedReady
+  updateStrategy:
     type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: crest-service

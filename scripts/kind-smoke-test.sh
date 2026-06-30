@@ -97,9 +97,9 @@ apply_local_kind_images() {
   if [[ "${load_local_images}" != "true" ]]; then
     return 0
   fi
-  info "pinning kind deployments to local images"
-  kubectl --context "${context}" -n "${namespace}" set image deployment/crest "crest=${frontend_runtime_image}"
-  kubectl --context "${context}" -n "${namespace}" set image deployment/crest-service "crest-service=${backend_runtime_image}"
+  info "pinning kind StatefulSets to local images"
+  kubectl --context "${context}" -n "${namespace}" set image statefulset/crest "crest=${frontend_runtime_image}"
+  kubectl --context "${context}" -n "${namespace}" set image statefulset/crest-service "crest-service=${backend_runtime_image}"
 }
 
 prepare_local_kind_storage() {

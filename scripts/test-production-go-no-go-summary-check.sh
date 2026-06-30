@@ -269,13 +269,13 @@ cat > "${production_evidence_dir}/production-runtime-check.txt" <<'EOF'
 runtime-check: namespace crest-prod passed live production runtime checks
 EOF
 
-write_deployment_evidence() {
+write_statefulset_evidence() {
   local name="$1"
   local image="$2"
-  cat > "${production_evidence_dir}/deployment-${name}.json" <<EOF
+  cat > "${production_evidence_dir}/statefulset-${name}.json" <<EOF
 {
   "apiVersion": "apps/v1",
-  "kind": "Deployment",
+  "kind": "StatefulSet",
   "metadata": { "name": "${name}" },
   "spec": {
     "template": {
@@ -290,8 +290,8 @@ write_deployment_evidence() {
 EOF
 }
 
-write_deployment_evidence crest "registry.example.internal/crest-web:v1.0.0"
-write_deployment_evidence crest-service "registry.example.internal/crest-service:v1.0.0"
+write_statefulset_evidence crest "registry.example.internal/crest-web:v1.0.0"
+write_statefulset_evidence crest-service "registry.example.internal/crest-service:v1.0.0"
 cat > "${production_evidence_dir}/service-crest.json" <<'EOF'
 {
   "apiVersion": "v1",
@@ -333,8 +333,8 @@ cat > "${production_evidence_dir}/secrets-sanitized.json" <<'EOF'
 }
 EOF
 {
-  echo "$(sha256_file "${production_evidence_dir}/deployment-crest.json")  deployment-crest.json"
-  echo "$(sha256_file "${production_evidence_dir}/deployment-crest-service.json")  deployment-crest-service.json"
+  echo "$(sha256_file "${production_evidence_dir}/statefulset-crest.json")  statefulset-crest.json"
+  echo "$(sha256_file "${production_evidence_dir}/statefulset-crest-service.json")  statefulset-crest-service.json"
   echo "$(sha256_file "${production_evidence_dir}/production-runtime-check.txt")  production-runtime-check.txt"
   echo "$(sha256_file "${production_evidence_dir}/secrets-sanitized.json")  secrets-sanitized.json"
   echo "$(sha256_file "${production_evidence_dir}/service-crest.json")  service-crest.json"

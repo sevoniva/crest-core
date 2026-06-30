@@ -15,13 +15,13 @@ container_dir="${test_root}/container"
 rm -rf "${test_root}"
 mkdir -p "${evidence_dir}" "${container_dir}"
 
-write_deployment() {
+write_statefulset() {
   local name="$1"
   local image="$2"
-  cat > "${evidence_dir}/deployment-${name}.json" <<EOF
+  cat > "${evidence_dir}/statefulset-${name}.json" <<EOF
 {
   "apiVersion": "apps/v1",
-  "kind": "Deployment",
+  "kind": "StatefulSet",
   "metadata": { "name": "${name}" },
   "spec": {
     "template": {
@@ -70,8 +70,8 @@ write_trivy_rootfs_fallback_report() {
 EOF
 }
 
-write_deployment crest "registry.example.internal/crest-web:v1.0.0"
-write_deployment crest-service "registry.example.internal/crest-service:v1.0.0"
+write_statefulset crest "registry.example.internal/crest-web:v1.0.0"
+write_statefulset crest-service "registry.example.internal/crest-service:v1.0.0"
 write_trivy_rootfs_fallback_report trivy-frontend.json "registry.example.internal/crest-web:v1.0.0"
 write_trivy_report trivy-backend.json "registry.example.internal/crest-service:v1.0.0"
 
@@ -91,14 +91,14 @@ grep -q 'deployed images missing Trivy scan coverage: registry.example.internal/
   || fail "missing image coverage failure must name the unscanned image"
 
 write_trivy_report trivy-backend.json "registry.example.internal/crest-service:v1.0.0"
-write_deployment crest-service "registry.example.internal/crest-service:latest"
+write_statefulset crest-service "registry.example.internal/crest-service:latest"
 if node scripts/verify-production-image-scan-coverage.mjs "${evidence_dir}" "${container_dir}" >"${test_root}/latest.log" 2>&1; then
-  fail "image scan coverage verifier should reject latest deployment tags"
+  fail "image scan coverage verifier should reject latest StatefulSet tags"
 fi
-grep -q 'deployment-crest-service.json must not deploy latest image tags' "${test_root}/latest.log" \
-  || fail "latest tag failure must name the deployment evidence file"
+grep -q 'statefulset-crest-service.json must not deploy latest image tags' "${test_root}/latest.log" \
+  || fail "latest tag failure must name the StatefulSet evidence file"
 
-write_deployment crest-service "registry.example.internal/crest-service:v1.0.0"
+write_statefulset crest-service "registry.example.internal/crest-service:v1.0.0"
 cat > "${container_dir}/trivy-frontend.json" <<'EOF'
 {
   "ArtifactType": "filesystem",

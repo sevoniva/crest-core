@@ -314,7 +314,7 @@ bad_optional_secret_overlay="${overlay_dir}-optional-secret-ref"
 rm -rf "${bad_optional_secret_overlay}"
 cp -R "${overlay_dir}" "${bad_optional_secret_overlay}"
 perl -0pi -e 's/(                name: crest-db-secret\n)/$1                optional: true\n/' \
-  "${bad_optional_secret_overlay}/08-crest-service-deployment.yaml"
+  "${bad_optional_secret_overlay}/08-crest-service-statefulset.yaml"
 if node scripts/verify-kubernetes-production.mjs --strict-config "${bad_optional_secret_overlay}" \
   >"${optional_secret_ref_log}" 2>&1; then
   fail "production Kubernetes verifier should reject optional DB Secret refs"

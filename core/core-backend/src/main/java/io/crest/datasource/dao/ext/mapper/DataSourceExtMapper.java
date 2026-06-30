@@ -9,7 +9,10 @@ import org.apache.ibatis.annotations.*;
 public interface DataSourceExtMapper extends BaseMapper<DataSourceNodePO> {
 
 
-    @Select("select  unix_timestamp(current_timestamp())  as currentTimestamp")
+    @Select("""
+            SELECT FLOOR((CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE) - DATE '1970-01-01') * 86400) AS currentTimestamp
+            FROM DUAL
+            """)
     @Results(
             id = "selectTimestamp",
             value = {
