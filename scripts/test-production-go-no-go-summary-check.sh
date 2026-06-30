@@ -45,6 +45,7 @@ github_actions_policy_report="${test_root}/github-actions-policy.txt"
 ci_toolchain_policy_report="${test_root}/ci-toolchain-policy.txt"
 container_report_dir="${test_root}/container"
 container_report_manifest="${container_report_dir}/container-report-manifest.sha256"
+container_scan_waiver_file="${test_root}/container-scan-waiver.md"
 container_base_image_policy_report="${test_root}/container-base-image-policy.txt"
 docker_build_base_image_policy_report="${test_root}/docker-build-base-image-policy.txt"
 production_evidence_dir="${test_root}/evidence"
@@ -574,6 +575,31 @@ history_secret_approval_date=2026-06-28
 EOF
 }
 
+write_container_scan_waiver_summary_fields() {
+  cat <<EOF
+skip_container_scan=true
+container_scan_waiver=true
+container_scan_waiver_file=${container_scan_waiver_file}
+container_scan_waiver_file_sha256=$(sha256_file "${container_scan_waiver_file}")
+container_scan_waiver_status=approved
+container_scan_waiver_scope=crest-web,crest-service
+container_scan_waiver_reason=temporary-user-approved-container-image-scan-exception
+container_scan_waiver_approved_by=platform-security
+container_scan_waiver_approval_date=${container_scan_waiver_approval_date}
+container_scan_waiver_compensating_controls=sast-sca-base-image-digest-policy-docker-build-runtime-evidence
+EOF
+}
+
+container_scan_waiver_approval_date="$(date -u +%F)"
+cat > "${container_scan_waiver_file}" <<EOF
+status: approved
+scope: crest-web,crest-service
+reason: temporary-user-approved-container-image-scan-exception
+approved_by: platform-security
+approval_date: ${container_scan_waiver_approval_date}
+compensating_controls: sast-sca-base-image-digest-policy-docker-build-runtime-evidence
+EOF
+
 go_summary="${test_root}/go-no-go.txt"
 cat > "${go_summary}" <<EOF
 Crest Core enterprise readiness check
@@ -602,6 +628,37 @@ production_release_status=ready-for-business-approval
 EOF
 
 bash scripts/production-go-no-go-summary-check.sh "${go_summary}" >/dev/null
+
+waived_container_summary="${test_root}/go-no-go-container-waiver.txt"
+cat > "${waived_container_summary}" <<EOF
+Crest Core enterprise readiness check
+create_clean_source=true
+require_clean_release_source=true
+clean_source_require_credential_rotation=true
+collect_evidence=true
+require_go_no_go=true
+check_external_evidence=true
+$(write_container_scan_waiver_summary_fields)
+$(write_artifact_evidence | sed '/^container_report_/d')
+$(write_history_secret_evidence)
+github-actions-policy: passed
+ci-toolchain-policy: passed
+quality: passed
+security: passed
+docker-environment: passed
+docker-build: passed
+container-scan-waiver: passed
+container-scan: waived
+kind-smoke: passed
+clean-source-release: passed
+production-overlay-render: passed (.local/production-overlay)
+production-evidence-bundle: passed
+external-production-evidence: passed
+readiness_status=go-no-go-passed
+production_release_status=ready-for-business-approval
+EOF
+
+bash scripts/production-go-no-go-summary-check.sh "${waived_container_summary}" >/dev/null
 
 bad_clean_archive_root="${test_root}/bad-clean-source-archive"
 bad_clean_archive_file="${test_root}/crest-core-1.0.0-source-with-git.tar.gz"

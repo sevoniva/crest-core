@@ -259,7 +259,7 @@ bash scripts/docker-build-check.sh
 bash scripts/container-image-scan.sh
 ```
 
-`enterprise-readiness-check.sh` 是企业准入总入口，默认串起 quality、SAST/SCA、镜像构建/扫描和 kind dry-run；真实 overlay、live runtime、上线证据采集、外部生产证据和 git 历史审计通过环境变量显式打开。上线评审时使用 `CREST_READINESS_REQUIRE_GO_NO_GO=true`，该模式会拒绝跳过静态门禁、clean source、生产 overlay、evidence bundle、live runtime check 或外部生产证据检查。
+`enterprise-readiness-check.sh` 是企业准入总入口，默认串起 quality、SAST/SCA、镜像构建/扫描和 kind dry-run；真实 overlay、live runtime、上线证据采集、外部生产证据和 git 历史审计通过环境变量显式打开。上线评审时使用 `CREST_READINESS_REQUIRE_GO_NO_GO=true`，该模式会拒绝跳过静态门禁、clean source、生产 overlay、evidence bundle、live runtime check 或外部生产证据检查。唯一允许的静态例外是镜像扫描：设置 `CREST_READINESS_SKIP_CONTAINER_SCAN=true` 时，必须同时设置 `CREST_READINESS_CONTAINER_SCAN_WAIVER=true` 并提供 `CREST_CONTAINER_SCAN_WAIVER_FILE`，否则 Go/No-Go 会失败。
 
 `quality-check.sh` 会强制使用 OpenJDK 17，依次校验 OB Oracle 初始化 SQL、Kubernetes 生产清单、kubectl dry-run、生产 overlay smoke、项目代码规范、前端 TypeScript、ESLint、生产构建、后端测试、前后端静态资源一致性和 release guard。
 
@@ -285,6 +285,19 @@ bash scripts/container-image-scan.sh
 `docker-build-check.sh` 会构建前端产物、后端 JAR、校验静态资源同步，并构建前后端 Docker 镜像。构建前会运行基础镜像策略检查和 Docker 环境预检；CI 中 `.github/workflows/container-gates.yml` 会执行同一脚本；企业内网可通过 `CREST_DOCKER_JDK_IMAGE`、`CREST_DOCKER_RUNTIME_IMAGE` 和 `CREST_DOCKER_NGINX_IMAGE` 指向内部镜像仓库。发布 workflow 和 Go/No-Go 模式要求这些基础镜像使用 `@sha256` 固定 digest，避免同一个 tag 在不同时间解析到不同镜像。
 
 `container-image-scan.sh` 会使用 Trivy 扫描 `crest-web` 和 `crest-service` 镜像，默认发现 `HIGH` 或 `CRITICAL` 漏洞即失败，报告输出到 `reports/container`。扫描结束后还会执行 `container-report-check.mjs` 解析 Trivy JSON，确认报告存在、目标是 container image，且 HIGH/CRITICAL 为 0。本地可先执行 `CREST_TRIVY_INSTALL_DIR=/tmp/crest-tools bash scripts/install-trivy.sh`，再用 `CREST_TRIVY_BIN=/tmp/crest-tools/trivy bash scripts/container-image-scan.sh`。`install-trivy.sh` 支持 `CREST_DOWNLOAD_PROXY`、`CREST_DOWNLOAD_MAX_TIME_SECONDS`、`CREST_DOWNLOAD_CONNECT_TIMEOUT_SECONDS`、`CREST_DOWNLOAD_SPEED_TIME_SECONDS` 和 `CREST_DOWNLOAD_SPEED_LIMIT_BYTES`，用于慢网或企业代理环境。如果本地没有 Trivy 二进制，脚本会回退到 `aquasec/trivy:<version>` 容器扫描本地 Docker 镜像；企业内网可通过 `CREST_TRIVY_DOWNLOAD_BASE_URL` 或 `CREST_TRIVY_DOCKER_IMAGE` 指向内部镜像源或制品源。Trivy 漏洞库默认按 `ghcr.io`、`public.ecr.aws`、`mirror.gcr.io` 的顺序配置；慢网或内网环境可用 `CREST_TRIVY_DB_REPOSITORIES` 和 `CREST_TRIVY_JAVA_DB_REPOSITORIES` 传入逗号分隔的内部镜像源列表。
+
+临时不执行镜像扫描时，豁免文件必须使用本地私有路径，例如 `reports/readiness/container-scan-waiver.md`，并至少包含：
+
+```text
+status: approved
+scope: crest-web,crest-service
+reason: approved-temporary-container-image-scan-exception
+approved_by: platform-security
+approval_date: YYYY-MM-DD
+compensating_controls: sast-sca-base-image-digest-policy-docker-build-runtime-evidence
+```
+
+该文件会写入 readiness summary，并记录 SHA-256；它只豁免 Trivy 镜像漏洞扫描，不豁免源码 SAST/SCA、基础镜像 digest 策略、镜像构建、runtime evidence 或外部生产证据。
 
 `history-secret-audit.sh` 和 `create-clean-source-release.sh` 需要 Gitleaks。本地可执行 `CREST_GITLEAKS_INSTALL_DIR=/tmp/crest-tools bash scripts/install-gitleaks.sh`，再通过 `CREST_GITLEAKS_BIN=/tmp/crest-tools/gitleaks` 指向固定版本。
 

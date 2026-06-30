@@ -252,7 +252,7 @@ bash scripts/enterprise-readiness-check.sh
 | Kubernetes | `bash scripts/kind-smoke-test.sh` | API Server dry-run 通过 |
 | 生产配置 | `bash scripts/production-config-check.sh .local/production-overlay` | 严格检查通过 |
 
-Go/No-Go 审批时还需要 clean source、真实 runtime、生产 evidence bundle 和外部生产证据。详见 [生产准入](./production-readiness.md)。
+Go/No-Go 审批时还需要 clean source、真实 runtime、生产 evidence bundle 和外部生产证据。镜像漏洞扫描如被明确豁免，必须提供 `CREST_CONTAINER_SCAN_WAIVER_FILE`，并在 summary 中留下批准文件 SHA-256；该豁免不影响其他门禁。详见 [生产准入](./production-readiness.md)。
 
 ## 10. 回滚设计
 

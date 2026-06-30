@@ -42,7 +42,9 @@ unset \
   CREST_BACKEND_IMAGE \
   CREST_FRONTEND_IMAGE \
   CREST_DATA_STORAGE_CLASS \
-  CREST_DATA_STORAGE_SIZE
+  CREST_DATA_STORAGE_SIZE \
+  CREST_READINESS_CONTAINER_SCAN_WAIVER \
+  CREST_CONTAINER_SCAN_WAIVER_FILE
 
 test_root="${CREST_TEST_READINESS_SUMMARY_DIR:-.local/enterprise-readiness-summary-test-$$}"
 rm -rf "${test_root}"
@@ -318,6 +320,18 @@ fi
 
 grep -q 'Go/No-Go mode requires quality' "${go_no_go_log}" \
   || fail "Go/No-Go failure must identify the skipped quality gate"
+
+go_no_go_container_skip_log="${test_root}/go-no-go-container-skip.log"
+if env \
+  CREST_READINESS_REQUIRE_GO_NO_GO=true \
+  CREST_READINESS_SKIP_CONTAINER_SCAN=true \
+  CREST_READINESS_REPORT_DIR="${test_root}/go-no-go-container-skip" \
+  bash scripts/enterprise-readiness-check.sh >"${go_no_go_container_skip_log}" 2>&1; then
+  fail "Go/No-Go mode should fail when container scan is skipped without an approved waiver"
+fi
+
+grep -q 'Go/No-Go mode requires container-scan' "${go_no_go_container_skip_log}" \
+  || fail "Go/No-Go container scan skip failure must explain the required waiver"
 
 go_no_go_digest_log="${test_root}/go-no-go-digest.log"
 if env \

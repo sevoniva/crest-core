@@ -574,8 +574,44 @@ verify_external_redis_evidence() {
     || fail "redis-cluster.md redis namespace check report must contain redis_acl_channel_isolation=passed"
 }
 
+verify_container_scan_waiver() {
+  local waiver_file waiver_file_sha256 waiver_status waiver_scope waiver_reason waiver_approved_by waiver_approval_date waiver_controls
+  waiver_file="$(field_value container_scan_waiver_file)"
+  waiver_file_sha256="$(field_value container_scan_waiver_file_sha256)"
+  waiver_status="$(field_value container_scan_waiver_status)"
+  waiver_scope="$(field_value container_scan_waiver_scope)"
+  waiver_reason="$(field_value container_scan_waiver_reason)"
+  waiver_approved_by="$(field_value container_scan_waiver_approved_by)"
+  waiver_approval_date="$(field_value container_scan_waiver_approval_date)"
+  waiver_controls="$(field_value container_scan_waiver_compensating_controls)"
+
+  [[ "$(field_value container_scan_waiver)" == "true" ]] \
+    || fail "container scan waiver path requires container_scan_waiver=true"
+  [[ -n "${waiver_file}" ]] || fail "readiness summary missing container_scan_waiver_file"
+  [[ -f "${waiver_file}" ]] || fail "container scan waiver file does not exist: ${waiver_file}"
+  [[ "${waiver_file_sha256}" =~ ^[0-9a-f]{64}$ ]] \
+    || fail "container_scan_waiver_file_sha256 must be a SHA-256 digest"
+  [[ "$(file_sha256 "${waiver_file}")" == "${waiver_file_sha256}" ]] \
+    || fail "container scan waiver file SHA-256 mismatch"
+  [[ "${waiver_status}" == "approved" ]] \
+    || fail "container scan waiver must record status=approved"
+  for value_name in waiver_scope waiver_reason waiver_approved_by waiver_controls; do
+    [[ -n "${!value_name}" ]] || fail "container scan waiver summary missing ${value_name#waiver_}"
+    case "${!value_name}" in
+      CHANGE_ME*|*CHANGE_ME*|TODO|FIXME|unknown|none|n/a|N/A)
+        fail "container scan waiver ${value_name#waiver_} must be a real approval value"
+        ;;
+    esac
+  done
+  validate_date_value "${waiver_approval_date}" "container_scan_waiver_approval_date"
+  if grep -Eq 'CHANGE_ME|change-me|TODO|FIXME|<[^>]+>' "${waiver_file}"; then
+    fail "container scan waiver file still contains placeholder text"
+  fi
+}
+
 readiness_status="$(field_value readiness_status)"
 production_release_status="$(field_value production_release_status)"
+skip_container_scan="$(field_value skip_container_scan)"
 
 [[ "${readiness_status}" == "go-no-go-passed" ]] \
   || fail "readiness_status must be go-no-go-passed, got ${readiness_status:-missing}"
@@ -601,9 +637,23 @@ require_line '^github_actions_policy_report=[^[:space:]]+\.txt$' 'github_actions
 require_line '^github_actions_policy_report_sha256=[0-9a-f]{64}$' 'github_actions_policy_report_sha256 digest'
 require_line '^ci_toolchain_policy_report=[^[:space:]]+\.txt$' 'ci_toolchain_policy_report path'
 require_line '^ci_toolchain_policy_report_sha256=[0-9a-f]{64}$' 'ci_toolchain_policy_report_sha256 digest'
-require_line '^container_report_dir=[^[:space:]]+' 'container_report_dir path'
-require_line '^container_report_manifest=[^[:space:]]+/container-report-manifest\.sha256$' 'container_report_manifest path'
-require_line '^container_report_manifest_sha256=[0-9a-f]{64}$' 'container_report_manifest_sha256 digest'
+if [[ "${skip_container_scan}" == "true" ]]; then
+  require_line '^container_scan_waiver=true$' 'container_scan_waiver=true'
+  require_line '^container-scan-waiver: passed$' 'container-scan-waiver: passed'
+  require_line '^container-scan: waived$' 'container-scan: waived'
+  require_line '^container_scan_waiver_file=[^[:space:]]+\.md$' 'container_scan_waiver_file path'
+  require_line '^container_scan_waiver_file_sha256=[0-9a-f]{64}$' 'container_scan_waiver_file_sha256 digest'
+  require_line '^container_scan_waiver_status=approved$' 'container_scan_waiver_status=approved'
+  require_line '^container_scan_waiver_scope=[^[:space:]]+' 'container_scan_waiver_scope value'
+  require_line '^container_scan_waiver_reason=[^[:space:]]+' 'container_scan_waiver_reason value'
+  require_line '^container_scan_waiver_approved_by=[^[:space:]]+' 'container_scan_waiver_approved_by value'
+  require_line '^container_scan_waiver_approval_date=[0-9]{4}-[0-9]{2}-[0-9]{2}$' 'container_scan_waiver_approval_date value'
+  require_line '^container_scan_waiver_compensating_controls=[^[:space:]]+' 'container_scan_waiver_compensating_controls value'
+else
+  require_line '^container_report_dir=[^[:space:]]+' 'container_report_dir path'
+  require_line '^container_report_manifest=[^[:space:]]+/container-report-manifest\.sha256$' 'container_report_manifest path'
+  require_line '^container_report_manifest_sha256=[0-9a-f]{64}$' 'container_report_manifest_sha256 digest'
+fi
 require_line '^container_base_image_policy_report=[^[:space:]]+\.txt$' 'container_base_image_policy_report path'
 require_line '^container_base_image_policy_report_sha256=[0-9a-f]{64}$' 'container_base_image_policy_report_sha256 digest'
 require_line '^docker_build_base_image_policy_report=[^[:space:]]+\.txt$' 'docker_build_base_image_policy_report path'
@@ -651,7 +701,11 @@ require_line '^history_secret_scan_report_sha256=[0-9a-f]{64}$' 'history_secret_
 require_digest_match security_report_manifest security_report_manifest_sha256 "security report manifest"
 require_digest_match github_actions_policy_report github_actions_policy_report_sha256 "GitHub Actions policy report"
 require_digest_match ci_toolchain_policy_report ci_toolchain_policy_report_sha256 "CI toolchain policy report"
-require_digest_match container_report_manifest container_report_manifest_sha256 "container report manifest"
+if [[ "${skip_container_scan}" == "true" ]]; then
+  require_digest_match container_scan_waiver_file container_scan_waiver_file_sha256 "container scan waiver file"
+else
+  require_digest_match container_report_manifest container_report_manifest_sha256 "container report manifest"
+fi
 require_digest_match container_base_image_policy_report container_base_image_policy_report_sha256 "container base image policy report"
 require_digest_match docker_build_base_image_policy_report docker_build_base_image_policy_report_sha256 "Docker build base image policy report"
 require_digest_match external_evidence_summary external_evidence_summary_sha256 "external evidence summary"
@@ -715,13 +769,17 @@ node scripts/security-report-check.mjs "${security_report_dir}" >/dev/null
 [[ "$(artifact_field_value "${ci_toolchain_policy_report_path}" centralized_ci_tool_installs)" == "true" ]] \
   || fail "CI toolchain policy report must record centralized_ci_tool_installs=true"
 
-[[ -d "${container_report_dir}" ]] || fail "container report directory does not exist: ${container_report_dir}"
-[[ "${container_report_manifest_path}" == "${container_report_dir}/container-report-manifest.sha256" ]] \
-  || fail "container_report_manifest must be inside container_report_dir"
-grep -Eq '^[0-9a-f]{64}[[:space:]]+trivy-.+\.json$' "${container_report_manifest_path}" \
-  || fail "container report manifest must include at least one Trivy JSON report"
-verify_digest_manifest_entries "${container_report_dir}" "${container_report_manifest_path}" "container report manifest"
-node scripts/container-report-check.mjs "${container_report_dir}" >/dev/null
+if [[ "${skip_container_scan}" == "true" ]]; then
+  verify_container_scan_waiver
+else
+  [[ -d "${container_report_dir}" ]] || fail "container report directory does not exist: ${container_report_dir}"
+  [[ "${container_report_manifest_path}" == "${container_report_dir}/container-report-manifest.sha256" ]] \
+    || fail "container_report_manifest must be inside container_report_dir"
+  grep -Eq '^[0-9a-f]{64}[[:space:]]+trivy-.+\.json$' "${container_report_manifest_path}" \
+    || fail "container report manifest must include at least one Trivy JSON report"
+  verify_digest_manifest_entries "${container_report_dir}" "${container_report_manifest_path}" "container report manifest"
+  node scripts/container-report-check.mjs "${container_report_dir}" >/dev/null
+fi
 
 [[ "$(artifact_field_value "${container_base_image_policy_report_path}" status)" == "passed" ]] \
   || fail "container base image policy report must record status=passed"
@@ -784,9 +842,11 @@ node scripts/verify-sanitized-kubernetes-secrets.mjs \
   crest-db-secret \
   crest-redis-secret \
   crest-tls >/dev/null
-node scripts/verify-production-image-scan-coverage.mjs \
-  "${production_evidence_dir}" \
-  "${container_report_dir}" >/dev/null
+if [[ "${skip_container_scan}" != "true" ]]; then
+  node scripts/verify-production-image-scan-coverage.mjs \
+    "${production_evidence_dir}" \
+    "${container_report_dir}" >/dev/null
+fi
 
 clean_source_summary_path="$(field_value clean_source_summary)"
 clean_source_generated_at_utc="$(field_value clean_source_generated_at_utc)"
@@ -921,13 +981,19 @@ for gate in \
   security \
   docker-environment \
   docker-build \
-  container-scan \
   kind-smoke \
   clean-source-release \
   production-evidence-bundle \
   external-production-evidence; do
   require_line "^${gate}: passed([[:space:]]|$)" "${gate}: passed"
 done
+
+if [[ "${skip_container_scan}" == "true" ]]; then
+  require_line '^container-scan-waiver: passed$' 'container-scan-waiver: passed'
+  require_line '^container-scan: waived$' 'container-scan: waived'
+else
+  require_line '^container-scan: passed([[:space:]]|$)' 'container-scan: passed'
+fi
 
 require_line '^production-overlay-(render|check): passed([[:space:]]|$)' 'production overlay render/check passed'
 

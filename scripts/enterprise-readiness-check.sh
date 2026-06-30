@@ -166,6 +166,37 @@ assert_safe_history_summary_file() {
   printf '%s' "${normalized}"
 }
 
+assert_safe_container_scan_waiver_file() {
+  local path="$1"
+  local normalized base
+  [[ -n "${path}" ]] || fail "CREST_CONTAINER_SCAN_WAIVER_FILE must not be empty"
+  case "${path}" in
+    /|.|..|*/)
+      fail "CREST_CONTAINER_SCAN_WAIVER_FILE must be a file path: ${path}"
+      ;;
+  esac
+  normalized="$(normalize_file_path CREST_CONTAINER_SCAN_WAIVER_FILE "${path}")"
+  base="$(basename "${path}")"
+  case "${base}" in
+    ""|.|..)
+      fail "CREST_CONTAINER_SCAN_WAIVER_FILE must be a file path: ${path}"
+      ;;
+  esac
+  case "${normalized}" in
+    "${repo_root}"|"$(dirname "${repo_root}")"|\
+    "${repo_root}/.git"|"${repo_root}/.git/"*|\
+    "${repo_root}/deploy"|"${repo_root}/deploy/"*)
+      fail "CREST_CONTAINER_SCAN_WAIVER_FILE points at an unsafe path: ${path}"
+      ;;
+    "${repo_root}/"*)
+      ;;
+    *)
+      fail "CREST_CONTAINER_SCAN_WAIVER_FILE must stay inside the repository: ${path}"
+      ;;
+  esac
+  printf '%s' "${normalized}"
+}
+
 assert_safe_gate_log_dir() {
   local path="$1"
   local normalized
@@ -222,6 +253,35 @@ evidence_field_value() {
       exit
     }
   ' "${path}"
+}
+
+require_evidence_field() {
+  local path="$1"
+  local field="$2"
+  if ! grep -Eiq "^${field}:[[:space:]]*[^[:space:]].*$" "${path}"; then
+    fail "$(basename "${path}") must include a non-empty ${field}: field"
+  fi
+}
+
+require_evidence_date_not_future() {
+  local value="$1"
+  local label="$2"
+  [[ "${value}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+    || fail "${label} must use YYYY-MM-DD"
+  node -e '
+    const [value, today] = process.argv.slice(1);
+    const valueDate = new Date(`${value}T00:00:00Z`);
+    const todayDate = new Date(`${today}T00:00:00Z`);
+    if (Number.isNaN(valueDate.getTime()) || valueDate.toISOString().slice(0, 10) !== value) process.exit(2);
+    if (valueDate.getTime() > todayDate.getTime()) process.exit(3);
+  ' "${value}" "$(date -u +%F)" || {
+    local status=$?
+    case "${status}" in
+      2) fail "${label} must be a real calendar date" ;;
+      3) fail "${label} must not be in the future" ;;
+      *) fail "${label} date validation failed" ;;
+    esac
+  }
 }
 
 summary_field_value() {
@@ -394,6 +454,19 @@ record_container_report_evidence() {
   record "container_report_manifest_sha256=$(file_sha256 "${container_manifest}")"
 }
 
+record_container_scan_waiver_evidence() {
+  local waiver_file="$1"
+  local waiver_display="$2"
+  record "container_scan_waiver_file=${waiver_display}"
+  record "container_scan_waiver_file_sha256=$(file_sha256 "${waiver_file}")"
+  record "container_scan_waiver_status=$(evidence_field_value "${waiver_file}" status)"
+  record "container_scan_waiver_scope=$(evidence_field_value "${waiver_file}" scope)"
+  record "container_scan_waiver_reason=$(evidence_field_value "${waiver_file}" reason)"
+  record "container_scan_waiver_approved_by=$(evidence_field_value "${waiver_file}" approved_by)"
+  record "container_scan_waiver_approval_date=$(evidence_field_value "${waiver_file}" approval_date)"
+  record "container_scan_waiver_compensating_controls=$(evidence_field_value "${waiver_file}" compensating_controls)"
+}
+
 record_container_base_image_policy_evidence() {
   local policy_report="$1"
   [[ -s "${policy_report}" ]] || fail "container base image policy report is missing or empty: ${policy_report}"
@@ -545,12 +618,15 @@ record_final_status() {
 
   local readiness_status
   local skipped_static_gate="false"
-  for gate in "${skip_quality}" "${skip_security}" "${skip_docker}" "${skip_container_scan}" "${skip_kind}"; do
+  for gate in "${skip_quality}" "${skip_security}" "${skip_docker}" "${skip_kind}"; do
     if [[ "${gate}" == "true" ]]; then
       skipped_static_gate="true"
       break
     fi
   done
+  if [[ "${skip_container_scan}" == "true" && "${container_scan_waiver}" != "true" ]]; then
+    skipped_static_gate="true"
+  fi
 
   if [[ "${static_gate_failed}" == "true" ]]; then
     readiness_status="failed"
@@ -716,6 +792,25 @@ run_container_scan_gate() {
   record_container_report_evidence
 }
 
+run_container_scan_waiver_gate() {
+  local waiver_file waiver_display approval_date
+  waiver_file="$(assert_safe_container_scan_waiver_file "${container_scan_waiver_file}")"
+  [[ -s "${waiver_file}" ]] || fail "container scan waiver file is missing or empty: ${container_scan_waiver_file}"
+  if grep -Eq 'CHANGE_ME|change-me|TODO|FIXME|<[^>]+>' "${waiver_file}"; then
+    fail "container scan waiver file still contains placeholder text"
+  fi
+  for field in status scope reason approved_by approval_date compensating_controls; do
+    require_evidence_field "${waiver_file}" "${field}"
+  done
+  [[ "$(evidence_field_value "${waiver_file}" status)" == "approved" ]] \
+    || fail "container scan waiver file must include status: approved"
+  approval_date="$(evidence_field_value "${waiver_file}" approval_date)"
+  require_evidence_date_not_future "${approval_date}" "container scan waiver approval_date"
+  waiver_display="$(display_repo_path "${waiver_file}")"
+  record_container_scan_waiver_evidence "${waiver_file}" "${waiver_display}"
+  record "container-scan: waived"
+}
+
 run_docker_build_gate() {
   local policy_report="${CREST_DOCKER_BUILD_BASE_IMAGE_POLICY_REPORT:-${report_dir}/docker-build-base-image-policy.txt}"
   if [[ -n "${docker_buildkit}" ]]; then
@@ -825,6 +920,8 @@ skip_quality="${CREST_READINESS_SKIP_QUALITY:-false}"
 skip_security="${CREST_READINESS_SKIP_SECURITY:-false}"
 skip_docker="${CREST_READINESS_SKIP_DOCKER:-false}"
 skip_container_scan="${CREST_READINESS_SKIP_CONTAINER_SCAN:-false}"
+container_scan_waiver="${CREST_READINESS_CONTAINER_SCAN_WAIVER:-false}"
+container_scan_waiver_file="${CREST_CONTAINER_SCAN_WAIVER_FILE:-reports/readiness/container-scan-waiver.md}"
 skip_kind="${CREST_READINESS_SKIP_KIND:-false}"
 require_history="${CREST_READINESS_REQUIRE_CLEAN_HISTORY:-false}"
 create_clean_source="${CREST_READINESS_CREATE_CLEAN_SOURCE:-false}"
@@ -853,6 +950,14 @@ case "${docker_buildkit}" in
     ;;
 esac
 
+case "${container_scan_waiver}" in
+  true|false)
+    ;;
+  *)
+    fail "CREST_READINESS_CONTAINER_SCAN_WAIVER must be true or false"
+    ;;
+esac
+
 case "${evidence_require_ingress_address}" in
   true|false)
     ;;
@@ -866,11 +971,14 @@ if [[ "${require_go_no_go}" == "true" ]]; then
     "CREST_READINESS_SKIP_QUALITY:${skip_quality}:quality" \
     "CREST_READINESS_SKIP_SECURITY:${skip_security}:security" \
     "CREST_READINESS_SKIP_DOCKER:${skip_docker}:docker-build" \
-    "CREST_READINESS_SKIP_CONTAINER_SCAN:${skip_container_scan}:container-scan" \
     "CREST_READINESS_SKIP_KIND:${skip_kind}:kind-smoke"; do
     IFS=":" read -r env_name env_value gate_name <<< "${skipped_gate}"
     [[ "${env_value}" != "true" ]] || fail "Go/No-Go mode requires ${gate_name}; unset ${env_name}"
   done
+  if [[ "${skip_container_scan}" == "true" ]]; then
+    [[ "${container_scan_waiver}" == "true" ]] \
+      || fail "Go/No-Go mode requires container-scan; unset CREST_READINESS_SKIP_CONTAINER_SCAN or set CREST_READINESS_CONTAINER_SCAN_WAIVER=true with CREST_CONTAINER_SCAN_WAIVER_FILE"
+  fi
   [[ "${create_clean_source}" == "true" ]] || fail "Go/No-Go mode requires CREST_READINESS_CREATE_CLEAN_SOURCE=true"
   [[ "${require_clean_release_source}" == "true" ]] || fail "Go/No-Go mode requires CREST_READINESS_REQUIRE_CLEAN_RELEASE_SOURCE=true"
   [[ "${render_overlay}" == "true" || -n "${overlay_dir}" ]] || fail "Go/No-Go mode requires CREST_READINESS_RENDER_OVERLAY=true or CREST_PRODUCTION_OVERLAY_DIR"
@@ -891,6 +999,7 @@ record "skip_quality=${skip_quality}"
 record "skip_security=${skip_security}"
 record "skip_docker=${skip_docker}"
 record "skip_container_scan=${skip_container_scan}"
+record "container_scan_waiver=${container_scan_waiver}"
 record "skip_kind=${skip_kind}"
 record "require_base_image_digests=${base_image_require_digests}"
 record "docker_buildkit=${docker_buildkit:-default}"
@@ -954,6 +1063,8 @@ if [[ "${skip_container_scan}" != "true" ]]; then
   else
     run_gate "container-scan" "container image CVE gate" run_container_scan_gate
   fi
+elif [[ "${container_scan_waiver}" == "true" ]]; then
+  run_gate "container-scan-waiver" "container image CVE waiver evidence" run_container_scan_waiver_gate
 else
   record "container-scan: skipped"
 fi
