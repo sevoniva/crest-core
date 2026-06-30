@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0 - 2026-06-28
+## v1.0.0 - 2026-06-30
 
 Crest Core v1.0.0 是面向全新私有化生产环境的首个交付版本。该版本聚焦轻量 BI 核心能力，默认采用 OpenJDK 17、OceanBase Oracle 系统库、OceanBase Oracle 业务数据源、外部 Redis Cluster，并提供 Kubernetes 多副本和 Docker Compose 单主机生产交付。
 
