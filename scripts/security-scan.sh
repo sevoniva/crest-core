@@ -136,6 +136,7 @@ mvn -s .mvn/settings.xml \
   -DskipTests \
   org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom \
   -DoutputFormat=json \
+  -DschemaVersion=1.5 \
   -DoutputName=crest-bom \
   -DoutputDirectory="${report_dir}"
 

@@ -142,6 +142,8 @@ jobs:
           CREST_DOCKER_NGINX_IMAGE: ${{ env.NGINX_IMAGE }}
           CREST_DOCKER_REQUIRE_BASE_IMAGE_DIGESTS: "true"
           CREST_DOCKER_COMMIT_ID: ${{ github.sha }}
+          CREST_DOCKER_FRONTEND_BUILDKIT: "true"
+          CREST_DOCKER_BACKEND_BUILDKIT: "true"
         run: bash scripts/docker-build-check.sh
 
       - name: Run container image CVE gate
