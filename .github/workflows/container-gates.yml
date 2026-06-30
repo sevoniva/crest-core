@@ -20,8 +20,8 @@ env:
   CREST_DOCKER_JDK_IMAGE: ${{ vars.CREST_DOCKER_JDK_IMAGE || 'eclipse-temurin:17-jdk-jammy@sha256:beabb759e6f9653c843958d1d1f5cecb881dfb85aa6081e2bef099ab1260344e' }}
   CREST_DOCKER_RUNTIME_IMAGE: ${{ vars.CREST_DOCKER_RUNTIME_IMAGE || 'ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54' }}
   CREST_DOCKER_NGINX_IMAGE: ${{ vars.CREST_DOCKER_NGINX_IMAGE || 'nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de' }}
-  CREST_DOCKER_BACKEND_TAG: crest-service:container-gate
-  CREST_DOCKER_FRONTEND_TAG: crest-web:container-gate
+  CREST_DOCKER_BACKEND_TAG: crest-core-service:container-gate
+  CREST_DOCKER_FRONTEND_TAG: crest-core-web:container-gate
   CREST_TRIVY_SKIP_JAVA_ARTIFACTS: 'true'
   CREST_TRIVY_SKIP_JAVA_DB_UPDATE: 'true'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

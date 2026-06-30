@@ -15,7 +15,13 @@ mkdir -p "${test_root}"
 trap 'rm -rf "${test_root}"' EXIT
 
 good_env="${test_root}/good.env"
-cat > "${good_env}" <<'EOF'
+db_password="$(printf 'D%.0s' {1..24})"
+aes_key="$(printf 'A%.0s' {1..32})"
+aes_iv="$(printf 'V%.0s' {1..16})"
+initial_password="$(printf 'I%.0s' {1..18})"
+token_secret="$(printf 'T%.0s' {1..40})"
+redis_password="$(printf 'R%.0s' {1..24})"
+cat > "${good_env}" <<EOF
 CREST_COMPOSE_PROJECT_NAME=crest-core-prod
 CREST_BACKEND_IMAGE=ghcr.io/sevoniva/crest-core-service:v1.0.0
 CREST_FRONTEND_IMAGE=ghcr.io/sevoniva/crest-core-web:v1.0.0
@@ -26,14 +32,14 @@ CREST_DB_HOST=obproxy.company.internal
 CREST_DB_PORT=2883
 CREST_DB_URL=jdbc:oceanbase://obproxy.company.internal:2883
 CREST_DB_USERNAME=crest_core_prod@obtenant#obcluster
-CREST_DB_PASSWORD=Db7Kc2Mhf9vPq4TzYx8R
-CREST_AES_KEY=1234567890abcdef1234567890abcdef
-CREST_AES_IV=1234567890abcdef
-CREST_INITIAL_PASSWORD=Init7Kc2Mhf9vPq4
-CREST_TOKEN_SECRET=Token7Kc2Mhf9vPq4TzYx8R3AaBbCcDdEeFf
+CREST_DB_PASSWORD=${db_password}
+CREST_AES_KEY=${aes_key}
+CREST_AES_IV=${aes_iv}
+CREST_INITIAL_PASSWORD=${initial_password}
+CREST_TOKEN_SECRET=${token_secret}
 CREST_REDIS_CLUSTER_NODES=redis-a.company.internal:6379,redis-b.company.internal:6379,redis-c.company.internal:6379
 CREST_REDIS_USERNAME=company-prod-crest-core-acl
-CREST_REDIS_PASSWORD=Redis7Kc2Mhf9vPq4Tz
+CREST_REDIS_PASSWORD=${redis_password}
 CREST_REDIS_SSL_ENABLED=false
 CREST_REDIS_KEY_PREFIX={company-prod-crest-core}:prod
 CREST_REDIS_CACHE_KEY_PREFIX={company-prod-crest-core}:prod:cache:

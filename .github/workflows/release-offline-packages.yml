@@ -1,0 +1,214 @@
+name: Release Offline Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to package
+        required: false
+        default: v1.0.0
+      upload_to_release:
+        description: Upload packages to the GitHub Release
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency:
+  group: release-offline-packages-${{ github.ref }}-${{ inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  JDK_IMAGE: ${{ vars.CREST_DOCKER_JDK_IMAGE || 'eclipse-temurin:17-jdk-jammy@sha256:beabb759e6f9653c843958d1d1f5cecb881dfb85aa6081e2bef099ab1260344e' }}
+  RUNTIME_IMAGE: ${{ vars.CREST_DOCKER_RUNTIME_IMAGE || 'ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54' }}
+  NGINX_IMAGE: ${{ vars.CREST_DOCKER_NGINX_IMAGE || 'nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate:
+    name: Validate release inputs
+    runs-on: ubuntu-24.04
+    outputs:
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      release_version: ${{ steps.release.outputs.release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        id: release
+        env:
+          DISPATCH_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          release_tag="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            release_tag="${DISPATCH_RELEASE_TAG}"
+          fi
+          version="v$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "${release_tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release_tag must look like vX.Y.Z, got ${release_tag}" >&2
+            exit 1
+          fi
+          if [[ "${release_tag}" != "${version}" ]]; then
+            echo "release_tag must match VERSION (${version}), got ${release_tag}" >&2
+            exit 1
+          fi
+          if [[ ! -f "docs/release/${release_tag}.md" ]]; then
+            echo "missing release notes: docs/release/${release_tag}.md" >&2
+            exit 1
+          fi
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "release_version=${version}" >> "${GITHUB_OUTPUT}"
+
+  offline-package:
+    name: Build offline package (${{ matrix.arch }})
+    needs: validate
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          package_json_file: core/core-frontend/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: core/core-frontend/pnpm-lock.yaml
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+        with:
+          platforms: amd64,arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Build frontend assets
+        working-directory: core/core-frontend
+        env:
+          CREST_FRONTEND_COMMIT_ID: ${{ github.sha }}
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build:base
+          pnpm run build:lite:check
+
+      - name: Build backend artifact
+        run: |
+          mvn -pl :core-backend -am clean package -Pstandalone -DskipTests -Dmaven.test.skip=true
+          node scripts/verify-static-assets.mjs
+
+      - name: Export architecture-specific image archives
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/offline-images"
+          backend_tar="${RUNNER_TEMP}/offline-images/crest-core-service-${RELEASE_TAG}-linux-${ARCH}.tar"
+          frontend_tar="${RUNNER_TEMP}/offline-images/crest-core-web-${RELEASE_TAG}-linux-${ARCH}.tar"
+          docker buildx build \
+            --platform "linux/${ARCH}" \
+            -f Dockerfile.backend \
+            --pull=false \
+            --build-arg "JDK_IMAGE=${JDK_IMAGE}" \
+            --build-arg "RUNTIME_IMAGE=${RUNTIME_IMAGE}" \
+            --build-arg "CREST_BACKEND_COMMIT_ID=${GITHUB_SHA}" \
+            -t "ghcr.io/sevoniva/crest-core-service:${RELEASE_TAG}" \
+            --output "type=docker,dest=${backend_tar}" \
+            .
+          docker buildx build \
+            --platform "linux/${ARCH}" \
+            -f Dockerfile.frontend \
+            --pull=false \
+            --build-arg "NGINX_IMAGE=${NGINX_IMAGE}" \
+            --build-arg "CREST_FRONTEND_COMMIT_ID=${GITHUB_SHA}" \
+            -t "ghcr.io/sevoniva/crest-core-web:${RELEASE_TAG}" \
+            --output "type=docker,dest=${frontend_tar}" \
+            .
+          echo "CREST_OFFLINE_BACKEND_IMAGE_TAR=${backend_tar}" >> "${GITHUB_ENV}"
+          echo "CREST_OFFLINE_FRONTEND_IMAGE_TAR=${frontend_tar}" >> "${GITHUB_ENV}"
+
+      - name: Create offline delivery package
+        env:
+          CREST_OFFLINE_RELEASE_VERSION: ${{ needs.validate.outputs.release_tag }}
+          CREST_OFFLINE_PACKAGE_ARCH: ${{ matrix.arch }}
+          CREST_OFFLINE_OUTPUT_DIR: reports/release-offline
+          CREST_OFFLINE_WORK_DIR: .local/offline-release-package
+        run: bash scripts/create-offline-release-package.sh
+
+      - name: Upload offline package artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: crest-core-${{ needs.validate.outputs.release_tag }}-linux-${{ matrix.arch }}-offline
+          path: |
+            reports/release-offline/crest-core-${{ needs.validate.outputs.release_tag }}-linux-${{ matrix.arch }}-offline.tar.gz
+            reports/release-offline/crest-core-${{ needs.validate.outputs.release_tag }}-linux-${{ matrix.arch }}-offline.tar.gz.sha256
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish release assets
+    needs:
+      - validate
+      - offline-package
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' || inputs.upload_to_release == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Download offline package artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: reports/release-offline/downloaded
+          merge-multiple: true
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          release_notes="docs/release/${RELEASE_TAG}.md"
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" \
+              --title "Crest Core ${RELEASE_TAG}" \
+              --notes-file "${release_notes}" \
+              --latest
+          else
+            gh release create "${RELEASE_TAG}" \
+              --target "${GITHUB_SHA}" \
+              --title "Crest Core ${RELEASE_TAG}" \
+              --notes-file "${release_notes}" \
+              --latest
+          fi
+          gh release upload "${RELEASE_TAG}" reports/release-offline/downloaded/* --clobber

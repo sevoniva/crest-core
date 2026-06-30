@@ -31,7 +31,7 @@ data:
       absolute_redirect off;
       client_max_body_size 500m;
       charset utf-8;
-      charset_types text/html text/plain text/css application/javascript application/json;
+      charset_types text/plain text/css application/javascript application/json;
       add_header X-Content-Type-Options "nosniff" always;
       add_header X-Frame-Options "SAMEORIGIN" always;
       add_header Referrer-Policy "strict-origin-when-cross-origin" always;

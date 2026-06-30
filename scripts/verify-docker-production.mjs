@@ -42,12 +42,16 @@ function readRelative(filePath) {
   return readFileSync(absolutePath, "utf8");
 }
 
-function hasLine(text, pattern) {
-  return new RegExp(pattern, "mu").test(text);
-}
-
 function assertIncludes(text, needle, message) {
   assert(text.includes(needle), message);
+}
+
+function hasExactLine(text, expectedLine) {
+  return text.split(/\r?\n/u).includes(expectedLine);
+}
+
+function hasLinePrefix(text, prefix) {
+  return text.split(/\r?\n/u).some((line) => line.startsWith(prefix));
 }
 
 function serviceBlock(compose, serviceName) {
@@ -66,7 +70,7 @@ function serviceNames(compose) {
 }
 
 function assertEnvironmentKey(block, key) {
-  assert(hasLine(block, `^      ${key}:`), `crest-core-service environment must include ${key}`);
+  assert(hasLinePrefix(block, `      ${key}:`), `crest-core-service environment must include ${key}`);
 }
 
 function containsPlaceholder(value) {
@@ -303,9 +307,9 @@ const exampleEnv = readRelative(exampleEnvPath);
 assert(JSON.stringify(serviceNames(compose)) === JSON.stringify(["crest-core-service", "crest-core-web"]),
   "compose.yaml must define exactly two services: crest-core-service and crest-core-web");
 for (const banned of ["redis", "redis-cluster", "oceanbase", "ob", "mysql", "postgres", "postgresql", "oracle"]) {
-  assert(!hasLine(compose, `^  ${banned}:\\s*$`), `compose.yaml must not start external dependency service ${banned}`);
+  assert(!hasExactLine(compose, `  ${banned}:`), `compose.yaml must not start external dependency service ${banned}`);
 }
-assert(!hasLine(compose, "^\\s*container_name:"), "compose.yaml must not use container_name because crest-core-service must scale");
+assert(!/^\s*container_name:/mu.test(compose), "compose.yaml must not use container_name because crest-core-service must scale");
 
 const backend = serviceBlock(compose, "crest-core-service");
 const frontend = serviceBlock(compose, "crest-core-web");
@@ -327,7 +331,7 @@ for (const [name, block] of [["crest-core-service", backend], ["crest-core-web",
 
 assertIncludes(backend, "$${CREST_WORKER_ID:-$$(hostname)}", "crest-core-service must derive CREST_WORKER_ID from container hostname by default");
 assertIncludes(backend, "expose:", "crest-core-service must expose only the internal backend port");
-assert(!hasLine(backend, "^    ports:"), "crest-core-service must not publish host ports directly");
+assert(!/^    ports:/mu.test(backend), "crest-core-service must not publish host ports directly");
 assertIncludes(backend, "crest-core-data:/opt/crest/data", "crest-core-service must persist business data in crest-core-data volume");
 assertIncludes(backend, "crest-core-service-logs:/opt/crest/logs", "crest-core-service must persist service logs in a named volume");
 
@@ -390,14 +394,16 @@ assertIncludes(frontend, "./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
   "crest-core-web must use the Docker-specific Nginx config");
 
 assertIncludes(nginx, "resolver 127.0.0.11", "Docker Nginx config must use Docker DNS");
-assertIncludes(nginx, 'set $crest_backend "crest-core-service:8100"', "Docker Nginx config must target crest-core-service by DNS name");
+assertIncludes(nginx, "upstream crest_core_backend", "Docker Nginx config must define a fixed backend upstream");
+assertIncludes(nginx, "server crest-core-service:8100;", "Docker Nginx config must target crest-core-service by DNS name");
 assertIncludes(nginx, "charset utf-8;", "Docker Nginx config must force UTF-8 to prevent Chinese mojibake");
 assertIncludes(nginx, "location ^~ /api/v1/", "Docker Nginx config must proxy API requests");
 assertIncludes(nginx, "location /websocket", "Docker Nginx config must proxy websocket requests");
 assertIncludes(nginx, "location ^~ /api/v1/actuator/", "Docker Nginx config must hide actuator endpoints");
 assertIncludes(nginx, "return 404;", "Docker Nginx config must return 404 for hidden locations");
 assertIncludes(nginx, "location ~* \\.map$", "Docker Nginx config must block source map files");
-assertIncludes(nginx, "proxy_pass http://$crest_backend;", "Docker Nginx config must preserve full request URIs when proxying");
+assertIncludes(nginx, "proxy_set_header Host crest-core-service;", "Docker Nginx config must not forward client-controlled Host values");
+assertIncludes(nginx, "proxy_pass http://crest_core_backend;", "Docker Nginx config must preserve full request URIs when proxying");
 
 assert(!/^export\s+/mu.test(exampleEnv), "production.env.example must use KEY=value format without export");
 for (const key of [
@@ -419,7 +425,7 @@ for (const key of [
   "CREST_LOCK_KEY_PREFIX",
   "CREST_WEBSOCKET_BROADCAST_CHANNEL",
 ]) {
-  assert(hasLine(exampleEnv, `^${key}=`), `production.env.example must document ${key}`);
+  assert(hasLinePrefix(exampleEnv, `${key}=`), `production.env.example must document ${key}`);
 }
 
 if (strictConfigFile) {

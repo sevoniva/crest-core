@@ -54,6 +54,8 @@
 ```text
 ghcr.io/sevoniva/crest-core-service:vX.Y.Z
 ghcr.io/sevoniva/crest-core-web:vX.Y.Z
+crest-core-vX.Y.Z-linux-amd64-offline.tar.gz
+crest-core-vX.Y.Z-linux-arm64-offline.tar.gz
 installer/init-sql/ob-oracle/crest-core-schema.sql
 deploy/kubernetes/
 deploy/docker/

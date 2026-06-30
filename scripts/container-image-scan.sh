@@ -81,6 +81,7 @@ skip_java_db_update="${CREST_TRIVY_SKIP_JAVA_DB_UPDATE:-false}"
 skip_java_artifacts="${CREST_CONTAINER_SCAN_SKIP_JAVA_ARTIFACTS:-${CREST_TRIVY_SKIP_JAVA_ARTIFACTS:-false}}"
 pkg_types="${CREST_TRIVY_PKG_TYPES:-}"
 cache_dir="${CREST_TRIVY_CACHE_DIR:-.cache/trivy}"
+rootfs_only="${CREST_CONTAINER_SCAN_ROOTFS_ONLY:-false}"
 default_db_repositories="ghcr.io/aquasecurity/trivy-db:2,public.ecr.aws/aquasecurity/trivy-db:2,mirror.gcr.io/aquasec/trivy-db:2"
 default_java_db_repositories="ghcr.io/aquasecurity/trivy-java-db:1,public.ecr.aws/aquasecurity/trivy-java-db:1,mirror.gcr.io/aquasec/trivy-java-db:1"
 db_repositories_raw="${CREST_TRIVY_DB_REPOSITORIES:-${CREST_TRIVY_DB_REPOSITORY:-${default_db_repositories}}}"
@@ -139,6 +140,13 @@ case "${rootfs_fallback}" in
     ;;
   *)
     fail "CREST_CONTAINER_SCAN_ROOTFS_FALLBACK must be true or false"
+    ;;
+esac
+case "${rootfs_only}" in
+  true|false)
+    ;;
+  *)
+    fail "CREST_CONTAINER_SCAN_ROOTFS_ONLY must be true or false"
     ;;
 esac
 case "${skip_java_db_update}" in
@@ -232,6 +240,7 @@ scan_image() {
     --output "${output}"
     --cache-dir "${cache_dir}"
     --timeout "${timeout}"
+    --skip-version-check
   )
   if [[ "${ignore_unfixed}" == "true" ]]; then
     args+=(--ignore-unfixed)
@@ -260,6 +269,10 @@ scan_image() {
   fi
 
   if [[ "${scanner_mode}" == "binary" ]]; then
+    if [[ "${rootfs_only}" == "true" ]]; then
+      scan_rootfs_fallback "${image}" "${name}" "${output}"
+      return "$?"
+    fi
     image_scan_status=0
     "${trivy_bin}" "${args[@]}" "${image}" 2>"${log_file}" || image_scan_status=$?
     cat "${log_file}" >&2
@@ -350,7 +363,11 @@ scan_rootfs_fallback() {
     fi
   }
 
-  info "image scan did not produce valid JSON for ${image}; retrying ${name} via docker export rootfs fallback"
+  if [[ "${rootfs_only}" == "true" ]]; then
+    info "scanning ${image} via docker export rootfs mode"
+  else
+    info "image scan did not produce valid JSON for ${image}; retrying ${name} via docker export rootfs fallback"
+  fi
   container_id="$(docker create "${image}")" || {
     cleanup_rootfs
     return 1
@@ -375,6 +392,7 @@ scan_rootfs_fallback() {
     --output "${output}"
     --cache-dir "${cache_dir}"
     --timeout "${timeout}"
+    --skip-version-check
   )
   if [[ "${ignore_unfixed}" == "true" ]]; then
     rootfs_args+=(--ignore-unfixed)
