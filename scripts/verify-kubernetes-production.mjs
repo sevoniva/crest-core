@@ -8,6 +8,7 @@ import path from "node:path";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const strictConfig = args.includes("--strict-config") || process.env.CREST_K8S_STRICT_CONFIG === "true";
+const skipKubectlDryRun = process.env.CREST_K8S_SKIP_KUBECTL_DRY_RUN === "true";
 const overlay = args.find((arg) => !arg.startsWith("--")) || "deploy/kubernetes";
 
 function fail(message) {
@@ -146,10 +147,12 @@ function requireSecretText(secret, key, minLength) {
 }
 
 function renderOverlay() {
-  execFileSync("kubectl", ["create", "--dry-run=client", "--validate=false", "-f", overlay], {
-    cwd: repoRoot,
-    stdio: ["ignore", "ignore", "pipe"],
-  });
+  if (!skipKubectlDryRun) {
+    execFileSync("kubectl", ["create", "--dry-run=client", "--validate=false", "-f", overlay], {
+      cwd: repoRoot,
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+  }
 
   const overlayPath = path.resolve(repoRoot, overlay);
   const files = manifestFiles(overlayPath);

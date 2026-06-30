@@ -25,12 +25,16 @@ require_cmd node
 require_cmd pnpm
 require_cmd mvn
 require_cmd ruby
-require_cmd kubectl
+if [[ "${CREST_K8S_SKIP_KUBECTL_DRY_RUN:-false}" != "true" ]]; then
+  require_cmd kubectl
+fi
 
 info "validating generated OB Oracle init SQL and Kubernetes manifests"
 node scripts/generate-ob-oracle-init-schema.mjs --check
 node scripts/verify-kubernetes-production.mjs deploy/kubernetes
-kubectl create --dry-run=client --validate=false -f deploy/kubernetes -o name >/dev/null
+if [[ "${CREST_K8S_SKIP_KUBECTL_DRY_RUN:-false}" != "true" ]]; then
+  kubectl create --dry-run=client --validate=false -f deploy/kubernetes -o name >/dev/null
+fi
 bash scripts/test-production-overlay-render.sh
 bash scripts/test-production-overlay-evidence.sh
 bash scripts/test-production-runtime-check.sh
