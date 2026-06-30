@@ -142,6 +142,7 @@ mvn -s .mvn/settings.xml \
 info "running pnpm production dependency audit"
 (
   cd core/core-frontend
+  pnpm install --frozen-lockfile --ignore-scripts
   pnpm audit --prod --audit-level=moderate --json > "${report_dir}/pnpm-audit.json"
   pnpm licenses list --prod --json > "${report_dir}/frontend-licenses.json"
 )

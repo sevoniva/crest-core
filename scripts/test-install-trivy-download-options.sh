@@ -39,10 +39,15 @@ done
 [[ -n "${output}" ]] || exit 2
 mkdir -p "$(dirname "${output}")"
 if [[ "${url}" == *checksums.txt ]]; then
-  asset="trivy_0.71.2_macOS-ARM64.tar.gz"
   payload="${CREST_FAKE_TRIVY_ASSET_PAYLOAD}"
   checksum="$(printf '%s' "${payload}" | shasum -a 256 | awk '{print $1}')"
-  printf '%s  %s\n' "${checksum}" "${asset}" > "${output}"
+  for asset in \
+    trivy_0.71.2_Linux-64bit.tar.gz \
+    trivy_0.71.2_Linux-ARM64.tar.gz \
+    trivy_0.71.2_macOS-64bit.tar.gz \
+    trivy_0.71.2_macOS-ARM64.tar.gz; do
+    printf '%s  %s\n' "${checksum}" "${asset}"
+  done > "${output}"
 else
   printf '%s' "${CREST_FAKE_TRIVY_ASSET_PAYLOAD}" > "${output}"
 fi
